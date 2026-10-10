@@ -74,4 +74,5 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_ADMIN_TOKEN` | | Password of the usage page `/admin/usage` (any user name); the page is off when unset |
 | `ANKI_CATALOG_USAGE_DB` | in memory | SQLite file with the usage counters; when unset and `/data` is writable, the in-memory counters are saved to `/data/usage.sqlite3` |
 | `ANKI_CATALOG_USAGE_SAVE_SECONDS` | `300` | How often the counters are saved to `/data` (also on shutdown) |
+| `ANKI_CATALOG_QUESTION_DAYS` | `90` | How long the AI question log (`/admin/questions`) keeps questions |
 | `ANKI_CATALOG_LOG_LEVEL` | `INFO` | Logs go to stderr |

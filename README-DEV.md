@@ -97,7 +97,19 @@ Run one replica: the rate limiter and the caches live in memory and reset on res
 
 `/admin/usage` shows keyword searches, AI questions by outcome (answered, cached, failed, blocked), AI spend and
 page views per UTC day. It asks for a login: any user name, password `ANKI_CATALOG_ADMIN_TOKEN`; without that
-secret the page is off. No query text is stored.
+secret the page is off.
+
+`/admin/questions` logs every AI question for `ANKI_CATALOG_QUESTION_DAYS` days, without the visitor's IP: the
+question, outcome (answered, cached, failed, refused, budget, unavailable, cancelled), tokens, cost, duration, the
+answer and a trace of each model round with its tool calls and arguments (tool results only by size). Each question
+has a detail page. For your own analysis, download all of them as JSON Lines:
+
+```bash
+curl -su "admin:$ANKI_CATALOG_ADMIN_TOKEN" https://ya-alex-anki-addons-catalog.hf.space/admin/questions.jsonl \
+  | jq -r 'select(.outcome == "answered") | [.asked_at, .rounds, .cost_usd, .query] | @tsv'
+```
+
+Or download `usage.sqlite3` from the bucket and query the `questions` table with `sqlite3`.
 
 The counters persist when a Storage Bucket is mounted at `/data`: in the Space settings, attach a private
 bucket (e.g. `Ya-Alex/anki-addons-catalog-data`) read-write at `/data`. The bucket fits in the free storage allowance.

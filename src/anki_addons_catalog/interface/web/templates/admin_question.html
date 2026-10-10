@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Question {{ q.id }} – Anki Addons Catalog{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<p><a href="/admin/questions">← Questions</a></p>
+<h1>{{ q.query }}</h1>
+<p>{{ q.asked_at | replace("T", " ") }} · dataset {{ q.snapshot or "unknown" }} · <b>{{ q.outcome }}</b>
+  · {{ q.rounds }} rounds · {{ q.input_tokens }} in / {{ q.output_tokens }} out
+  · cache {{ q.cache_read_tokens }} read / {{ q.cache_write_tokens }} write
+  · ${{ "%.4f" | format(q.cost_usd) }} · {{ "%.1f" | format(q.duration_ms / 1000) }} s</p>
+{% if q.error %}<p><mark>{{ q.error }}</mark></p>{% endif %}
+
+<h2>Rounds</h2>
+<div class="overflow-auto">
+<table class="striped">
+  <thead><tr><th class="num">#</th><th>Stop</th><th class="num">In / out</th><th class="num">Cost</th><th>Tool calls</th></tr></thead>
+  <tbody>
+  {% for step in q.trace %}
+    <tr><td class="num">{{ loop.index }}</td><td>{{ step.stop }}</td><td class="num">{{ step["in"] }} / {{ step.out }}</td>
+      <td class="num">${{ "%.4f" | format(step.cost) }}</td>
+      <td>{% for call in step.tools %}<div><code>{{ call.name }}({{ call.arguments | tojson }})</code>
+        {% if call.is_error %}<mark>error</mark>{% endif %} <small>{{ call.result_chars }} chars</small></div>{% endfor %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if q.answer %}
+<h2>Answer</h2>
+<article>{{ answer_html | safe }}</article>
+{% if q.addon_ids %}<p>Addons shown: {% for id in q.addon_ids %}<a href="/addon/{{ id }}">{{ id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+{% endif %}
+{% endblock %}

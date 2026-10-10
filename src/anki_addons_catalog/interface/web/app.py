@@ -41,6 +41,9 @@ EXAMPLES = [
 ]
 
 
+QUESTIONS_PAGE = 50
+
+
 @dataclass
 class WebContext:
     catalog_port: CatalogPort
@@ -265,7 +268,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @app.get("/about", response_class=HTMLResponse)
     async def about(request: Request) -> HTMLResponse:
         view("about")
-        return await page(request, "about.html")
+        return await page(request, "about.html", question_days=ctx.usage.question_days)
 
     @app.get("/admin/usage", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
     async def admin_usage(request: Request) -> HTMLResponse:
@@ -276,6 +279,26 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         return await page(request, "admin_usage.html", days=days, total=_usage_row(totals), views=views,
                     since=ctx.usage.first_day(), persistent=ctx.usage.persistent,
                     spent_today=ctx.usage.today(u.AI_COST_USD), daily_budget=ctx.daily_budget_usd)
+
+    @app.get("/admin/questions", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
+    async def admin_questions(request: Request, offset: int = 0) -> HTMLResponse:
+        offset = max(offset, 0)
+        return await page(request, "admin_questions.html", questions=ctx.usage.questions(QUESTIONS_PAGE, offset),
+                          total=ctx.usage.question_count(), offset=offset, page_size=QUESTIONS_PAGE,
+                          days=ctx.usage.question_days)
+
+    @app.get("/admin/questions.jsonl", dependencies=[Depends(require_admin)])
+    async def admin_questions_export() -> StreamingResponse:
+        lines = (json.dumps(q, ensure_ascii=False) + "\n" for q in ctx.usage.iter_questions())
+        return StreamingResponse(lines, media_type="application/x-ndjson",
+                                 headers={"Content-Disposition": "attachment; filename=questions.jsonl"})
+
+    @app.get("/admin/questions/{question_id}", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
+    async def admin_question(request: Request, question_id: int) -> HTMLResponse:
+        question = ctx.usage.question(question_id)
+        if question is None:
+            raise HTTPException(404)
+        return await page(request, "admin_question.html", q=question, answer_html=render_markdown(question["answer"]))
 
     @app.get("/robots.txt", response_class=PlainTextResponse)
     async def robots() -> str:

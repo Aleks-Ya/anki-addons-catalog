@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-from anki_addons_catalog.application.usage import AI_COST_USD, KEYWORD_SEARCH, UsageStats
+from anki_addons_catalog.application.usage import AI_COST_USD, KEYWORD_SEARCH, QuestionRecord, UsageStats
 from anki_addons_catalog.bootstrap import create_usage
 from anki_addons_catalog.config import Settings
 
@@ -77,3 +77,33 @@ def test_create_usage_prefers_setting_then_mounted_volume(tmp_path: Path) -> Non
     file_db = str(tmp_path / "x.db")
     explicit = create_usage(Settings(_env_file=None, usage_db=file_db), storage=tmp_path)  # type: ignore[call-arg]
     assert explicit.path == file_db and explicit.backup is None
+
+
+def test_questions_round_trip() -> None:
+    usage = UsageStats(now=lambda: datetime(2026, 10, 1, 12, 30, tzinfo=UTC))
+    trace = [{"stop": "tool_use", "tools": [{"name": "search_addons", "arguments": {"query": "kanji"}}]},
+             {"stop": "end_turn", "tools": []}]
+    usage.record_question(QuestionRecord("kanji", "2026-09-01", "answered", rounds=2, cost_usd=0.03,
+                                         answer="Use it.", addon_ids=[1, 2], trace=trace))
+    usage.record_question(QuestionRecord("other", outcome="cached"))
+    assert usage.question_count() == 2
+    newest, oldest = usage.questions()
+    assert (newest["query"], oldest["query"]) == ("other", "kanji")
+    assert oldest["tool_calls"] == 1 and oldest["asked_at"] == "2026-10-01T12:30:00+00:00"
+    assert "answer" not in oldest
+    full = usage.question(oldest["id"])
+    assert full is not None and full["trace"] == trace and full["addon_ids"] == [1, 2] and full["answer"] == "Use it."
+    assert usage.question(999) is None
+    assert [q["query"] for q in usage.iter_questions()] == ["kanji", "other"]
+
+
+def test_old_questions_are_pruned_on_save(tmp_path: Path) -> None:
+    now = [datetime(2026, 10, 1, tzinfo=UTC)]
+    usage = UsageStats(backup=str(tmp_path / "usage.sqlite3"), question_days=90, now=lambda: now[0])
+    usage.record_question(QuestionRecord("old"))
+    now[0] += timedelta(days=60)
+    usage.record_question(QuestionRecord("new"))
+    now[0] += timedelta(days=31)
+    usage.close()
+    restored = UsageStats(backup=str(tmp_path / "usage.sqlite3"), now=lambda: now[0])
+    assert [q["query"] for q in restored.iter_questions()] == ["new"]

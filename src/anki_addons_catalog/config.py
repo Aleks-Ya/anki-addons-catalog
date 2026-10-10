@@ -47,4 +47,5 @@ class Settings(BaseSettings):
 
     usage_db: str | None = None
     usage_save_seconds: int = 300
+    question_days: int = 90
     admin_token: SecretStr | None = None

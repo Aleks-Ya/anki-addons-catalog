@@ -70,6 +70,38 @@ async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:
     assert all(not r["is_error"] for r in results)
 
 
+async def test_records_the_question_trace(catalog: McpCatalog) -> None:
+    llm = FakeLlm([tools(ToolCall("t1", "search_addons", {"query": "kanji"})),
+                   answer(f"Use [Kanji Helper](/addon/{KANJI}).")])
+    usage = UsageStats()
+    await collect(service(catalog, llm, usage=usage), " kanji ")
+    (q,) = usage.iter_questions()
+    assert (q["query"], q["snapshot"], q["outcome"], q["rounds"]) == ("kanji", "2026-09-01", "answered", 2)
+    assert (q["input_tokens"], q["output_tokens"]) == (2000, 250)
+    assert q["cost_usd"] == pytest.approx(usage.today(u.AI_COST_USD))
+    assert q["answer"] == f"Use [Kanji Helper](/addon/{KANJI})." and q["addon_ids"] == [KANJI]
+    first, last = q["trace"]
+    assert first["stop"] == "tool_use" and last["stop"] == "end_turn" and last["tools"] == []
+    (call,) = first["tools"]
+    assert call["name"] == "search_addons" and call["arguments"] == {"query": "kanji"}
+    assert not call["is_error"] and call["result_chars"] > 0
+    assert q["error"] is None and q["duration_ms"] >= 0
+
+
+async def test_records_failures_and_refusals(catalog: McpCatalog) -> None:
+    class Broken(FakeLlm):
+        async def turn(self, *args: Any) -> LlmTurn:
+            raise RuntimeError("boom")
+
+    usage = UsageStats()
+    await collect(service(catalog, Broken([]), usage=usage), "a")
+    refusal = LlmTurn(assistant_content=[], text="", tool_calls=[], stop_reason="refusal")
+    await collect(service(catalog, FakeLlm([refusal]), usage=usage), "b")
+    failed, refused = usage.iter_questions()
+    assert failed["outcome"] == "failed" and "boom" in failed["error"]
+    assert refused["outcome"] == "refused" and refused["rounds"] == 1
+
+
 async def test_answers_are_cached(catalog: McpCatalog) -> None:
     llm = FakeLlm([answer("Nothing fits.")])
     usage = UsageStats()
@@ -81,6 +113,7 @@ async def test_answers_are_cached(catalog: McpCatalog) -> None:
     assert len(llm.requests) == 1
     assert [usage.today(n) for n in (u.AI_ASKED, u.AI_ANSWERED, u.AI_CACHED)] == [2, 1, 1]
     assert usage.today(u.AI_COST_USD) == PRICING.cost(Usage(input_tokens=1000, output_tokens=200))
+    assert [(q["outcome"], q["answer"], q["cost_usd"]) for q in usage.iter_questions()][1] == ("cached", "Nothing fits.", 0)
 
 
 async def test_budget_exhausted(catalog: McpCatalog) -> None:
@@ -89,6 +122,7 @@ async def test_budget_exhausted(catalog: McpCatalog) -> None:
     with pytest.raises(BudgetExhausted):
         await collect(ask, "kanji")
     assert usage.today(u.AI_BUDGET_EXHAUSTED) == 1
+    assert [q["outcome"] for q in usage.iter_questions()] == ["budget"]
 
 
 async def test_refusal(catalog: McpCatalog) -> None:

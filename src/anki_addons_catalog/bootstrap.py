@@ -32,11 +32,12 @@ def create_llm(settings: Settings) -> LlmPort:
 
 def create_usage(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> UsageStats:
     """The configured SQLite file, else in memory with a backup in the Space's mounted volume, else in memory only."""
+    days = settings.question_days
     if settings.usage_db:
-        return UsageStats(settings.usage_db)
+        return UsageStats(settings.usage_db, question_days=days)
     if storage.is_dir() and os.access(storage, os.W_OK):
-        return UsageStats(MEMORY, backup=str(storage / "usage.sqlite3"))
-    return UsageStats(MEMORY)
+        return UsageStats(MEMORY, backup=str(storage / "usage.sqlite3"), question_days=days)
+    return UsageStats(MEMORY, question_days=days)
 
 
 def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:

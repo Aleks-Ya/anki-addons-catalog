@@ -5,6 +5,7 @@
 <h1>Usage</h1>
 <p>
   {% if since %}Counted since {{ since }} (UTC days).{% else %}Nothing counted yet.{% endif %}
+  <a href="/admin/questions">Questions →</a>
   {% if not persistent %}<mark>In memory: the counts reset when the app restarts.</mark>{% endif %}
 </p>
 <div class="grid kpis">

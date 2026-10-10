@@ -86,6 +86,7 @@ def test_addon_page_resolves_relative_readme_links_against_github(make_client: A
 def test_about_shows_dataset_date(make_client: Any) -> None:
     text = make_client().get("/about").text
     assert "created on <b>3 Sep 2026</b>" in text
+    assert "stored for 90 days" in text
 
 
 def test_about_shows_contacts(make_client: Any) -> None:
@@ -213,6 +214,24 @@ def test_admin_usage_counts_searches_and_views(make_client: Any) -> None:
     assert '<small>Page views</small><p class="kpi">3</p>' in html
     assert '<tr><td>search</td><td class="num">2</td></tr>' in html
     assert '<meta name="robots" content="noindex">' in html
+
+
+def test_admin_questions(make_client: Any) -> None:
+    client = make_client(admin_token="secret")
+    assert client.get("/admin/questions").status_code == 401
+    assert client.get("/admin/questions.jsonl").status_code == 401
+    client.get("/api/ask", params={"q": "kanji"})
+    auth = ("admin", "secret")
+    assert 'href="/admin/questions"' in client.get("/admin/usage", auth=auth).text
+    html = client.get("/admin/questions", auth=auth).text
+    assert '<a href="/admin/questions/1">kanji</a>' in html and "<td>answered</td>" in html
+    detail = client.get("/admin/questions/1", auth=auth).text
+    assert "search_addons" in detail and f'<a href="/addon/{KANJI}">Kanji Helper</a>' in detail
+    assert client.get("/admin/questions/2", auth=auth).status_code == 404
+    export = client.get("/admin/questions.jsonl", auth=auth)
+    assert export.headers["content-type"].startswith("application/x-ndjson")
+    (row,) = [json.loads(line) for line in export.text.splitlines()]
+    assert row["query"] == "kanji" and row["trace"][0]["tools"][0]["name"] == "search_addons"
 
 
 def test_human_date() -> None:
