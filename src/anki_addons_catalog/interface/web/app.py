@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -48,6 +49,11 @@ class WebContext:
     keepalive_seconds: int
 
 
+def _static_hashes() -> dict[str, str]:
+    """Content hashes of the static files: a changed file gets a new URL, so browsers do not use a stale copy."""
+    return {p.name: hashlib.sha256(p.read_bytes()).hexdigest()[:12] for p in (HERE / "static").iterdir() if p.is_file()}
+
+
 def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -58,7 +64,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates.env.filters["readme"] = render_readme
     templates.env.filters["compact"] = compact_number
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
-                                 public_url=ctx.public_url, top_metrics=TOP_METRICS)
+                                 public_url=ctx.public_url, top_metrics=TOP_METRICS,
+                                 static_hash=_static_hashes())
 
     async def keepalive() -> None:
         while ctx.keepalive_seconds > 0:
