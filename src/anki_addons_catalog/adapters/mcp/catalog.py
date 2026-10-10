@@ -82,7 +82,8 @@ class McpCatalog:
             return await session.client()
         except Exception as e:
             await self._reset(session)
-            raise CatalogUnavailable(f"Cannot connect to the MCP server: {_describe(e)}") from e
+            raise CatalogUnavailable(f"Cannot connect to the MCP server: {_describe(e)}"
+                                     f"{await self._probe()}") from e
 
     async def _reset(self, session: _Session | None = None) -> None:
         async with self._lock:
@@ -120,6 +121,19 @@ class McpCatalog:
         async def call(client: Client) -> ToolResult:
             return _to_result(await client.call_tool(name, arguments))
         return await self._with_retry(f"call_tool({name})", call)
+
+    async def _probe(self) -> str:
+        """A plain HTTP request to the endpoint, to show what a failing server or proxy actually returns."""
+        if not isinstance(self._server, str):
+            return ""
+        request = {"jsonrpc": "2.0", "id": 0, "method": "ping"}
+        headers = {"Accept": "application/json, text/event-stream"}
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as http:
+                response = await http.post(self._server, json=request, headers=headers)
+            return f" (probe: HTTP {response.status_code}: {response.text[:300]!r})"
+        except httpx.HTTPError as e:
+            return f" (probe: {_describe(e)})"
 
     async def ping(self) -> bool:
         """Wakes up the MCP Space through its /healthz endpoint (cheaper than an MCP request)."""
