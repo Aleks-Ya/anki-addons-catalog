@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +22,8 @@ class Settings(BaseSettings):
         "get_addon_history", "diff_snapshots", "get_statistics", "top_addons", "list_snapshots",
     ]
 
-    anthropic_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = Field(
+        default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "ANKI_CATALOG_ANTHROPIC_API_KEY"))
     model: str = "claude-sonnet-5-5"
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
     max_tokens: int = 8000
