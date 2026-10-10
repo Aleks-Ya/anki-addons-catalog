@@ -88,6 +88,12 @@ def test_about_shows_dataset_date(make_client: Any) -> None:
     assert "created on <b>2026-09-03</b>" in text
 
 
+def test_about_shows_contacts(make_client: Any) -> None:
+    text = make_client().get("/about").text
+    assert 'href="https://forums.ankiweb.net/t/anki-addons-dataset-a-detailed-list-of-addons/63090"' in text
+    assert 'href="https://github.com/Aleks-Ya/anki-addons-catalog/issues"' in text
+
+
 def test_compatibility_verdict(make_client: Any) -> None:
     assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
 
