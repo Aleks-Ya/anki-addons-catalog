@@ -49,3 +49,19 @@ async def test_unreachable_server_raises() -> None:
 
 async def test_ping_in_process_server(catalog: McpCatalog) -> None:
     assert await catalog.ping()
+
+
+async def test_ping_sends_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+    seen: list[httpx.Request] = []
+    real_client = httpx.AsyncClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200)
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
+    catalog = McpCatalog("https://mcp.example/mcp", headers={"Authorization": "Bearer hf_test"})
+    assert await catalog.ping()
+    assert str(seen[0].url) == "https://mcp.example/healthz"
+    assert seen[0].headers["Authorization"] == "Bearer hf_test"

@@ -40,7 +40,12 @@ def usage_db_path(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> str
 
 
 def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:
-    mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds) if catalog is None else None
+    mcp = None
+    if catalog is None:
+        hf_token = _secret(settings.hf_token)
+        log.info("MCP requests: %s", "authenticated with HF_TOKEN" if hf_token else "anonymous")
+        mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds,
+                         headers={"Authorization": f"Bearer {hf_token}"} if hf_token else None)
     port: CatalogPort = catalog or mcp  # type: ignore[assignment]
     catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
     pricing = Pricing(settings.price_input_per_mtok, settings.price_output_per_mtok,

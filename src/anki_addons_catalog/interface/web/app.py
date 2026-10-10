@@ -129,8 +129,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @app.exception_handler(CatalogUnavailable)
     async def catalog_unavailable(request: Request, exc: CatalogUnavailable) -> HTMLResponse:
         log.warning("Catalog unavailable: %s", exc)
-        return await page(request, "error.html", 503, title="Catalog is waking up",
-                    message="The addon catalog is starting up. Please reload the page in a minute.")
+        return await page(request, "error.html", 503, title="Catalog temporarily unavailable",
+                    message="The addon catalog is temporarily unavailable. Please reload the page in a minute.")
 
     @app.exception_handler(ToolFailed)
     async def tool_failed(request: Request, exc: ToolFailed) -> HTMLResponse:
@@ -197,7 +197,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                 yield _sse("error", "The AI search has reached its daily budget. The keyword results below "
                                     "still work; AI search is back tomorrow.")
             except CatalogUnavailable:
-                yield _sse("error", "The addon catalog is waking up. Please try again in a minute.")
+                yield _sse("error", "The addon catalog is temporarily unavailable. Please try again in a minute.")
 
         def _event_data(event: AnswerEvent) -> Any:
             if event.type == "answer":

@@ -163,7 +163,7 @@ class AskService:
             except CatalogUnavailable:
                 log.exception("Catalog unavailable")
                 self._usage.add(u.AI_FAILED)
-                await emit(AnswerEvent("error", "The addon catalog is waking up or unavailable. "
+                await emit(AnswerEvent("error", "The addon catalog is temporarily unavailable. "
                                                 "Please try again in a minute."))
             except Exception:
                 log.exception("AI search failed for query %r", query)

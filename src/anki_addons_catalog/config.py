@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     mcp_url: str = "https://ya-alex-anki-addons-mcp.hf.space/mcp"
+    hf_token: SecretStr | None = Field(default=None, validation_alias=AliasChoices("HF_TOKEN", "ANKI_CATALOG_HF_TOKEN"))
     mcp_timeout_seconds: float = 120.0
     mcp_keepalive_seconds: int = 600
     mcp_cache_ttl_seconds: int = 3600

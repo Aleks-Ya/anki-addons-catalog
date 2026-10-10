@@ -55,6 +55,7 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_HOST` / `ANKI_CATALOG_PORT` | `127.0.0.1` / `8000` | HTTP binding (`0.0.0.0` / `7860` in Docker) |
 | `ANKI_CATALOG_PUBLIC_URL` | `https://www.anki-addons-catalog.com` | Base URL for the sitemap and canonical links |
 | `ANKI_CATALOG_MCP_URL` | `https://ya-alex-anki-addons-mcp.hf.space/mcp` | MCP server endpoint |
+| `HF_TOKEN` | | HuggingFace token sent to the MCP Space (a Space secret); without it requests are anonymous and may get HTTP 429 |
 | `ANKI_CATALOG_MCP_TIMEOUT_SECONDS` | `120` | MCP read timeout (covers a Space waking up) |
 | `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping the MCP Space this often to keep it awake; `0` disables |
 | `ANKI_CATALOG_MCP_CACHE_TTL_SECONDS` | `3600` | Cache of MCP results for the plain pages |

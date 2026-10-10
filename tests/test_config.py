@@ -11,3 +11,10 @@ def test_api_key_is_read_from_dotenv(tmp_path: Path, monkeypatch: pytest.MonkeyP
     settings = Settings(_env_file=tmp_path / ".env")  # type: ignore[call-arg]
     assert settings.anthropic_api_key is not None
     assert settings.anthropic_api_key.get_secret_value() == "sk-test"
+
+
+def test_hf_token_is_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HF_TOKEN", "hf_test")
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings.hf_token is not None
+    assert settings.hf_token.get_secret_value() == "hf_test"

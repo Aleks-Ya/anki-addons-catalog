@@ -5,7 +5,9 @@ from typing import Any
 
 import httpx
 from mcp import Client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.server.mcpserver import MCPServer
+from mcp.shared._httpx_utils import create_mcp_http_client
 from mcp.types import CallToolResult, TextContent
 
 from anki_addons_catalog.domain.errors import CatalogUnavailable
@@ -35,23 +37,32 @@ class _Session:
     """Owns one MCP client in a dedicated task: anyio requires a context to be exited by the task that entered it,
     while requests come from many request-handler tasks."""
 
-    def __init__(self, server: str | MCPServer, timeout_seconds: float) -> None:
+    def __init__(self, server: str | MCPServer, timeout_seconds: float, headers: dict[str, str] | None) -> None:
         self._server = server
         self._timeout = timeout_seconds
+        self._headers = headers
         self._ready: asyncio.Future[Client] = asyncio.get_running_loop().create_future()
         self._stop = asyncio.Event()
         self._task = asyncio.create_task(self._run(), name="mcp-session")
 
     async def _run(self) -> None:
         try:
-            async with Client(self._server, read_timeout_seconds=self._timeout) as client:
-                self._ready.set_result(client)
-                await self._stop.wait()
+            if isinstance(self._server, str) and self._headers:
+                async with create_mcp_http_client(headers=self._headers) as http:
+                    await self._serve(Client(streamable_http_client(self._server, http_client=http),
+                                             read_timeout_seconds=self._timeout))
+            else:
+                await self._serve(Client(self._server, read_timeout_seconds=self._timeout))
         except Exception as e:
             if not self._ready.done():
                 self._ready.set_exception(e)
             else:
                 log.debug("MCP session ended with an error", exc_info=True)
+
+    async def _serve(self, client: Client) -> None:
+        async with client:
+            self._ready.set_result(client)
+            await self._stop.wait()
 
     async def client(self) -> Client:
         return await asyncio.shield(self._ready)
@@ -64,19 +75,22 @@ class _Session:
 class McpCatalog:
     """CatalogPort over one long-lived MCP client session, reconnected when a call fails.
 
-    `server` is the MCP endpoint URL, or an in-process MCPServer in tests.
+    `server` is the MCP endpoint URL, or an in-process MCPServer in tests. `headers` go with every HTTP request
+    (an HF token: anonymous requests from a Space share its IP's rate limit and get HTTP 429).
     """
 
-    def __init__(self, server: str | MCPServer, timeout_seconds: float = 120.0) -> None:
+    def __init__(self, server: str | MCPServer, timeout_seconds: float = 120.0,
+                 headers: dict[str, str] | None = None) -> None:
         self._server = server
         self._timeout = timeout_seconds
+        self._headers = headers or {}
         self._session: _Session | None = None
         self._lock = asyncio.Lock()
 
     async def _connect(self) -> Client:
         async with self._lock:
             if self._session is None:
-                self._session = _Session(self._server, self._timeout)
+                self._session = _Session(self._server, self._timeout, self._headers)
             session = self._session
         try:
             return await session.client()
@@ -127,7 +141,7 @@ class McpCatalog:
         if not isinstance(self._server, str):
             return ""
         request = {"jsonrpc": "2.0", "id": 0, "method": "ping"}
-        headers = {"Accept": "application/json, text/event-stream"}
+        headers = {"Accept": "application/json, text/event-stream", **self._headers}
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as http:
                 response = await http.post(self._server, json=request, headers=headers)
@@ -141,7 +155,7 @@ class McpCatalog:
             return True
         url = self._server.rsplit("/", 1)[0] + "/healthz"
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as http:
+            async with httpx.AsyncClient(timeout=self._timeout, headers=self._headers) as http:
                 return (await http.get(url)).status_code == 200
         except httpx.HTTPError as e:
             log.warning("MCP keep-alive ping failed: %s", e)

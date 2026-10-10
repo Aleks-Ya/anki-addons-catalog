@@ -78,7 +78,8 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 
 1. Create a Space with the **Docker** SDK. The YAML header of `README.md` configures it (`sdk: docker`,
    `app_port: 7860`).
-2. In the Space settings, add the secrets `ANTHROPIC_API_KEY`, `ANKI_CATALOG_TURNSTILE_SECRET`,
+2. In the Space settings, add the secrets `ANTHROPIC_API_KEY`, `HF_TOKEN` (a fine-grained read-only token, see
+   [MCP Space](#mcp-space)), `ANKI_CATALOG_TURNSTILE_SECRET`,
    `ANKI_CATALOG_SESSION_SECRET`, `ANKI_CATALOG_ADMIN_TOKEN` (e.g. `openssl rand -hex 32` for both) and the variable
    `ANKI_CATALOG_TURNSTILE_SITE_KEY`. Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD` and
    `ANKI_CATALOG_RATE_LIMIT_PER_HOUR`.
@@ -126,8 +127,14 @@ local testing), mode **Managed**. Put the site key into `ANKI_CATALOG_TURNSTILE_
 
 ### MCP Space
 
-The catalog pings the MCP Space's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that it does not go to
-sleep. With HF Pro you can also set a longer sleep time for that Space in its settings.
+The catalog sends `HF_TOKEN` with every request to the MCP Space. HuggingFace rate-limits anonymous requests per IP
+address, and a Space shares its outgoing IP with other Spaces, so anonymous calls often fail with HTTP 429 (the site
+then shows "Catalog temporarily unavailable"). With a token the limit is counted per account instead. Any token
+works since the MCP Space is public: create a fine-grained token with no permissions at
+https://huggingface.co/settings/tokens. The startup log says "MCP requests: authenticated with HF_TOKEN".
+
+The catalog also pings the MCP Space's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that it does not go
+to sleep. With HF Pro you can also set a longer sleep time for that Space in its settings.
 
 ## Release a new version
 
