@@ -12,7 +12,7 @@ short_description: AI-powered search over every Anki addon
 
 # Anki Addons Catalog
 
-A web catalog of [Anki](https://apps.ankiweb.net) addons with AI-powered search: https://anki-addons-catalog.com
+A web catalog of [Anki](https://apps.ankiweb.net) addons with AI-powered search: https://www.anki-addons-catalog.com
 
 Ask in plain words ("image occlusion that works on Anki 25.02"). Claude searches the catalog through the
 [Anki Addons MCP server](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp), checks compatibility and maintenance,
@@ -20,7 +20,7 @@ and recommends the best fits. Plain catalog pages (addon details, top lists, aut
 changes) work without AI.
 
 ## Links
-- Website: https://anki-addons-catalog.com
+- Website: https://www.anki-addons-catalog.com
 - [HuggingFace Space](https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog) that hosts the website
 - [Anki Addons MCP server](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp)
   ([sources](https://github.com/Aleks-Ya/anki-addons-mcp)), the data access layer
@@ -31,7 +31,7 @@ changes) work without AI.
 ## Architecture
 
 ```
-Browser ──> anki-addons-catalog.com (Cloudflare DNS → HuggingFace custom domain)
+Browser ──> www.anki-addons-catalog.com (Cloudflare DNS → HuggingFace custom domain)
               │
               HF Space "Ya-Alex/anki-addons-catalog" (Docker, FastAPI)
               ├── HTML pages (Jinja2)          ── MCP tools ──┐
@@ -53,7 +53,7 @@ Anthropic SDK directly.
 |---|---|---|
 | `ANTHROPIC_API_KEY` | | Claude API key (a Space secret) |
 | `ANKI_CATALOG_HOST` / `ANKI_CATALOG_PORT` | `127.0.0.1` / `8000` | HTTP binding (`0.0.0.0` / `7860` in Docker) |
-| `ANKI_CATALOG_PUBLIC_URL` | `https://anki-addons-catalog.com` | Base URL for the sitemap and canonical links |
+| `ANKI_CATALOG_PUBLIC_URL` | `https://www.anki-addons-catalog.com` | Base URL for the sitemap and canonical links |
 | `ANKI_CATALOG_MCP_URL` | `https://ya-alex-anki-addons-mcp.hf.space/mcp` | MCP server endpoint |
 | `ANKI_CATALOG_MCP_TIMEOUT_SECONDS` | `120` | MCP read timeout (covers a Space waking up) |
 | `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping the MCP Space this often to keep it awake; `0` disables |

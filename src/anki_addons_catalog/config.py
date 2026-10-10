@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
-    public_url: str = "https://anki-addons-catalog.com"
+    public_url: str = "https://www.anki-addons-catalog.com"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     mcp_url: str = "https://ya-alex-anki-addons-mcp.hf.space/mcp"

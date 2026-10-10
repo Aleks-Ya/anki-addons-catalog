@@ -91,20 +91,25 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 
 Run one replica: the rate limiter, the daily budget and the caches live in memory and reset on restart.
 
-### Custom domain (anki-addons-catalog.com)
+### Custom domain (www.anki-addons-catalog.com)
 
-1. In the Space settings (HF Pro), open **Custom domain** and enter `anki-addons-catalog.com`.
-2. In the Cloudflare dashboard → **DNS**, add the record that HuggingFace shows (a `CNAME` to `hf.space`) with the
-   proxy status **DNS only** (grey cloud), so HuggingFace can issue the TLS certificate. Cloudflare flattens a
-   `CNAME` at the apex automatically. If HuggingFace cannot verify the apex, use `www.anki-addons-catalog.com` as
-   the Space domain instead and redirect the apex to it (next step, reversed).
-3. Add `www` → apex: a proxied `CNAME www → anki-addons-catalog.com` plus a **Redirect Rule** (Rules →
-   Redirect Rules, "Redirect from WWW to root" template, 301).
-4. Check `https://anki-addons-catalog.com/healthz`.
+HuggingFace serves a Space on a subdomain only, so the site lives at `www.anki-addons-catalog.com` and the apex
+redirects to it.
+
+1. In the Space settings (HF Pro), open **Custom domain** and enter `www.anki-addons-catalog.com`.
+2. In the Cloudflare dashboard → **DNS**, add `CNAME www → hf.space` with the proxy status **DNS only** (grey
+   cloud), so HuggingFace can verify the domain and issue the TLS certificate. Keep no other record at `www`.
+3. Redirect the apex: add a proxied (orange cloud) `A @ → 192.0.2.1` placeholder record, then a **Redirect Rule**
+   (Rules → Redirect Rules): when the hostname equals `anki-addons-catalog.com`, redirect dynamically to
+   `concat("https://www.anki-addons-catalog.com", http.request.uri.path)` with status 301 and the query string kept.
+4. When the Space settings show the domain as ready, check `https://www.anki-addons-catalog.com/healthz` and
+   `https://anki-addons-catalog.com/` (it should redirect).
+
+The Space must be public for visitors to see it on the custom domain.
 
 ### Cloudflare Turnstile
 
-Cloudflare dashboard → **Turnstile** → **Add widget**: hostname `anki-addons-catalog.com` (add `localhost` for
+Cloudflare dashboard → **Turnstile** → **Add widget**: hostnames `www.anki-addons-catalog.com` and `anki-addons-catalog.com` (add `localhost` for
 local testing), mode **Managed**. Put the site key into `ANKI_CATALOG_TURNSTILE_SITE_KEY` and the secret key into
 `ANKI_CATALOG_TURNSTILE_SECRET`.
 

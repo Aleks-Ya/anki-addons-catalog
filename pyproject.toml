@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://anki-addons-catalog.com"
+Homepage = "https://www.anki-addons-catalog.com"
 Repository = "https://github.com/Aleks-Ya/anki-addons-catalog"
 "MCP server" = "https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp"
 Dataset = "https://huggingface.co/datasets/Ya-Alex/anki-addons"
