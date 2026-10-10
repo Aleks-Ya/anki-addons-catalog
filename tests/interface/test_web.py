@@ -16,6 +16,7 @@ from tests.fixtures import KANJI, OCCLUSION
 
 
 def settings(**overrides: Any) -> Settings:
+    overrides.setdefault("usage_db", ":memory:")
     return Settings(_env_file=None, mcp_keepalive_seconds=0, public_url="https://example.org",  # type: ignore[call-arg]
                     **overrides)
 
@@ -112,7 +113,9 @@ def test_sitemap_and_robots(make_client: Any) -> None:
     client = make_client()
     sitemap = client.get("/sitemap.xml").text
     assert f"<loc>https://example.org/addon/{KANJI}</loc>" in sitemap
-    assert "Sitemap: https://example.org/sitemap.xml" in client.get("/robots.txt").text
+    robots = client.get("/robots.txt").text
+    assert "Sitemap: https://example.org/sitemap.xml" in robots
+    assert "Disallow: /admin/" in robots
 
 
 def test_healthz(make_client: Any) -> None:
@@ -167,3 +170,28 @@ def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> No
 
     client.cookies.set(PASS_COOKIE, "9999999999.forged")
     assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
+
+
+def test_admin_usage_needs_a_configured_token(make_client: Any) -> None:
+    assert make_client().get("/admin/usage", auth=("admin", "")).status_code == 404
+
+
+def test_admin_usage_rejects_wrong_credentials(make_client: Any) -> None:
+    client = make_client(admin_token="secret")
+    response = client.get("/admin/usage")
+    assert response.status_code == 401 and response.headers["www-authenticate"].startswith("Basic")
+    assert client.get("/admin/usage", auth=("admin", "wrong")).status_code == 401
+
+
+def test_admin_usage_counts_searches_and_views(make_client: Any) -> None:
+    client = make_client(admin_token="secret")
+    client.get("/search", params={"q": "kanji"})
+    client.get("/search")
+    client.get(f"/addon/{KANJI}")
+    client.get("/api/ask", params={"q": "kanji"})
+    html = client.get("/admin/usage", auth=("admin", "secret")).text
+    assert '<small>Keyword searches</small><p class="kpi">1</p>' in html
+    assert '<small>AI questions</small><p class="kpi">1</p>' in html
+    assert '<small>Page views</small><p class="kpi">3</p>' in html
+    assert '<tr><td>search</td><td class="num">2</td></tr>' in html
+    assert '<meta name="robots" content="noindex">' in html

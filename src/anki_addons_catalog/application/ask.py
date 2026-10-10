@@ -5,7 +5,9 @@ import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+from anki_addons_catalog.application import usage as u
 from anki_addons_catalog.application.limits import DailyBudget, TtlCache
+from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, ToolSpec
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
@@ -102,13 +104,15 @@ class AskService:
 
     def __init__(self, catalog: CatalogPort, llm: LlmPort, budget: DailyBudget, *, allowed_tools: list[str],
                  max_tool_rounds: int = 6, answer_cache_ttl_seconds: float = 86400,
-                 snapshot: Callable[[], Awaitable[str | None]] | None = None) -> None:
+                 snapshot: Callable[[], Awaitable[str | None]] | None = None,
+                 usage: UsageStats | None = None) -> None:
         self._catalog = catalog
         self._llm = llm
         self._budget = budget
         self._allowed = set(allowed_tools)
         self._max_rounds = max_tool_rounds
         self._snapshot = snapshot
+        self._usage = usage or UsageStats()
         self._tools: list[ToolSpec] | None = None
         self._answers: TtlCache[str, list[AnswerEvent]] = TtlCache(answer_cache_ttl_seconds, max_entries=1000)
 
@@ -133,14 +137,17 @@ class AskService:
     async def ask(self, query: str) -> AsyncIterator[AnswerEvent]:
         """Streams answer events; the events of a finished answer are cached per query and snapshot."""
         query = normalize_query(query)
+        self._usage.add(u.AI_ASKED)
         snapshot = await self._snapshot_date()
         key = f"{snapshot}|{query.lower()}"
         cached = self._answers.get(key)
         if cached is not None:
+            self._usage.add(u.AI_CACHED)
             for event in cached:
                 yield event
             return
         if self._budget.exhausted():
+            self._usage.add(u.AI_BUDGET_EXHAUSTED)
             raise BudgetExhausted()
 
         queue: asyncio.Queue[AnswerEvent | None] = asyncio.Queue()
@@ -155,10 +162,12 @@ class AskService:
                     self._answers.put(key, final)
             except CatalogUnavailable:
                 log.exception("Catalog unavailable")
+                self._usage.add(u.AI_FAILED)
                 await emit(AnswerEvent("error", "The addon catalog is waking up or unavailable. "
                                                 "Please try again in a minute."))
             except Exception:
                 log.exception("AI search failed for query %r", query)
+                self._usage.add(u.AI_FAILED)
                 await emit(AnswerEvent("error", "Something went wrong while answering. Please try again."))
             finally:
                 await queue.put(None)
@@ -187,15 +196,19 @@ class AskService:
         rounds = 0
         for rounds in range(1, self._max_rounds + 2):
             if self._budget.exhausted():
+                self._usage.add(u.AI_BUDGET_EXHAUSTED)
                 await emit(AnswerEvent("error", "The daily AI budget is used up. Please try the keyword search."))
                 return None
             await emit(AnswerEvent("status", "Thinking"))
             turn = await self._llm.turn(SYSTEM_PROMPT, tools, messages, on_text)
-            cost += self._budget.record(turn.usage)
+            turn_cost = self._budget.record(turn.usage)
+            self._usage.add(u.AI_COST_USD, turn_cost)
+            cost += turn_cost
             messages.append({"role": "assistant", "content": turn.assistant_content})
             if turn.text:
                 texts.append(turn.text)
             if turn.stop_reason == "refusal":
+                self._usage.add(u.AI_REFUSED)
                 await emit(AnswerEvent("error", "Sorry, I can't help with that request."))
                 return None
             if turn.stop_reason == "pause_turn":
@@ -210,10 +223,12 @@ class AskService:
 
         answer = (turn.text if turn and turn.text else "\n\n".join(texts)).strip()
         if not answer:
+            self._usage.add(u.AI_FAILED)
             await emit(AnswerEvent("error", "No answer was produced. Please rephrase the question."))
             return None
         shown = [cards[i].model_dump() for i in referenced_ids(answer) if i in cards]
         final = [AnswerEvent("answer", answer), AnswerEvent("addons", shown), AnswerEvent("done", None)]
+        self._usage.add(u.AI_ANSWERED)
         log.info("Answered %r: %d rounds, %d addons, cost $%.4f, spent today $%.2f", query, rounds,
                  len(shown), cost, self._budget.spent_usd)
         for event in final:

@@ -79,8 +79,9 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 1. Create a Space with the **Docker** SDK. The YAML header of `README.md` configures it (`sdk: docker`,
    `app_port: 7860`).
 2. In the Space settings, add the secrets `ANTHROPIC_API_KEY`, `ANKI_CATALOG_TURNSTILE_SECRET`,
-   `ANKI_CATALOG_SESSION_SECRET` (e.g. `openssl rand -hex 32`) and the variable `ANKI_CATALOG_TURNSTILE_SITE_KEY`.
-   Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD` and `ANKI_CATALOG_RATE_LIMIT_PER_HOUR`.
+   `ANKI_CATALOG_SESSION_SECRET`, `ANKI_CATALOG_ADMIN_TOKEN` (e.g. `openssl rand -hex 32` for both) and the variable
+   `ANKI_CATALOG_TURNSTILE_SITE_KEY`. Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD` and
+   `ANKI_CATALOG_RATE_LIMIT_PER_HOUR`.
 3. Push the repository:
    ```bash
    git remote add space https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
@@ -89,7 +90,17 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
    Or let CI do it: `.github/workflows/deploy-space.yml` pushes `main` after a green Unit-tests run. It needs a
    GitHub environment `huggingface` with the secret `HF_TOKEN` (a HuggingFace token with write access to the Space).
 
-Run one replica: the rate limiter, the daily budget and the caches live in memory and reset on restart.
+Run one replica: the rate limiter and the caches live in memory and reset on restart.
+
+### Usage statistics
+
+`/admin/usage` shows keyword searches, AI questions by outcome (answered, cached, failed, blocked), AI spend and
+page views per UTC day. It asks for a login: any user name, password `ANKI_CATALOG_ADMIN_TOKEN`; without that
+secret the page is off. No query text is stored.
+
+The counters live in SQLite at `/data/usage.sqlite3` when the Space has **Persistent storage** (Space settings,
+the small tier is enough); the daily budget resumes from them after a restart. Without persistent storage they are
+kept in memory and reset on restart.
 
 ### Custom domain (www.anki-addons-catalog.com)
 

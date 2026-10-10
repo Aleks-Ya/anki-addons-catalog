@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Usage – Anki Addons Catalog{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<h1>Usage</h1>
+<p>
+  {% if since %}Counted since {{ since }} (UTC days).{% else %}Nothing counted yet.{% endif %}
+  {% if not persistent %}<mark>In memory: the counts reset when the app restarts.</mark>{% endif %}
+</p>
+<div class="grid kpis">
+  <article><small>Keyword searches</small><p class="kpi">{{ total.keyword | int }}</p></article>
+  <article><small>AI questions</small><p class="kpi">{{ total.asked | int }}</p></article>
+  <article><small>AI spend</small><p class="kpi">${{ "%.2f" | format(total.cost) }}</p></article>
+  <article><small>Page views</small><p class="kpi">{{ total.views | int }}</p></article>
+</div>
+<p>Spent today: ${{ "%.2f" | format(spent_today) }} of ${{ "%.2f" | format(daily_budget) }}.</p>
+
+<h2>Last 30 days</h2>
+<div class="overflow-auto">
+<table class="striped">
+  <thead><tr><th>Day</th><th class="num">Keyword</th><th class="num">AI asked</th><th class="num">Answered</th>
+    <th class="num">Cached</th><th class="num" title="Errors and refusals">Failed</th>
+    <th class="num" title="Bot check, rate limit or budget">Blocked</th><th class="num">Cost</th>
+    <th class="num">Views</th></tr></thead>
+  <tbody>
+  {% for day, r in days %}
+    <tr><td>{{ day }}</td><td class="num">{{ r.keyword | int }}</td><td class="num">{{ r.asked | int }}</td>
+      <td class="num">{{ r.answered | int }}</td><td class="num">{{ r.cached | int }}</td>
+      <td class="num">{{ r.failed | int }}</td><td class="num">{{ r.blocked | int }}</td>
+      <td class="num">${{ "%.2f" | format(r.cost) }}</td><td class="num">{{ r.views | int }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Page views by page</h2>
+<table class="striped">
+  <tbody>
+  {% for name, count in views %}
+    <tr><td>{{ name }}</td><td class="num">{{ count | int }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

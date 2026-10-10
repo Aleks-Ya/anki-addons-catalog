@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
+from anki_addons_catalog.application import usage as u
 from anki_addons_catalog.application.ask import (
     FINAL_ROUND_NOTE,
     AskService,
@@ -13,6 +14,7 @@ from anki_addons_catalog.application.ask import (
     referenced_ids,
 )
 from anki_addons_catalog.application.limits import DailyBudget, Pricing
+from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, Usage
 from tests.conftest import FakeLlm
 from tests.fixtures import KANJI, OCCLUSION
@@ -34,11 +36,12 @@ def tools(*calls: ToolCall) -> LlmTurn:
                    usage=Usage(input_tokens=1000, output_tokens=50))
 
 
-def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_rounds: int = 3) -> AskService:
+def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_rounds: int = 3,
+            usage: UsageStats | None = None) -> AskService:
     async def snapshot() -> str:
         return "2026-09-01"
     return AskService(catalog, llm, DailyBudget(budget_usd, PRICING, today=lambda: date(2026, 10, 1)),
-                      allowed_tools=TOOLS, max_tool_rounds=max_rounds, snapshot=snapshot)
+                      allowed_tools=TOOLS, max_tool_rounds=max_rounds, snapshot=snapshot, usage=usage)
 
 
 async def collect(ask: AskService, query: str) -> list[AnswerEvent]:
@@ -69,24 +72,31 @@ async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:
 
 async def test_answers_are_cached(catalog: McpCatalog) -> None:
     llm = FakeLlm([answer("Nothing fits.")])
-    ask = service(catalog, llm)
+    usage = UsageStats()
+    ask = service(catalog, llm, usage=usage)
     first = await collect(ask, "Kanji")
     second = await collect(ask, "kanji")
     assert [e.type for e in second] == ["answer", "addons", "done"]
     assert second == first[-3:]
     assert len(llm.requests) == 1
+    assert [usage.today(n) for n in (u.AI_ASKED, u.AI_ANSWERED, u.AI_CACHED)] == [2, 1, 1]
+    assert usage.today(u.AI_COST_USD) == PRICING.cost(Usage(input_tokens=1000, output_tokens=200))
 
 
 async def test_budget_exhausted(catalog: McpCatalog) -> None:
-    ask = service(catalog, FakeLlm([answer("a")]), budget_usd=0)
+    usage = UsageStats()
+    ask = service(catalog, FakeLlm([answer("a")]), budget_usd=0, usage=usage)
     with pytest.raises(BudgetExhausted):
         await collect(ask, "kanji")
+    assert usage.today(u.AI_BUDGET_EXHAUSTED) == 1
 
 
 async def test_refusal(catalog: McpCatalog) -> None:
     refusal = LlmTurn(assistant_content=[], text="", tool_calls=[], stop_reason="refusal")
-    events = await collect(service(catalog, FakeLlm([refusal])), "bad")
+    usage = UsageStats()
+    events = await collect(service(catalog, FakeLlm([refusal]), usage=usage), "bad")
     assert [e.type for e in events] == ["status", "error"]
+    assert usage.today(u.AI_REFUSED) == 1
 
 
 async def test_last_round_asks_for_the_answer(catalog: McpCatalog) -> None:

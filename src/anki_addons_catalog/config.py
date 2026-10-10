@@ -43,3 +43,6 @@ class Settings(BaseSettings):
     turnstile_secret: SecretStr | None = None
     session_secret: SecretStr | None = None
     pass_ttl_seconds: int = 3600
+
+    usage_db: str | None = None
+    admin_token: SecretStr | None = None

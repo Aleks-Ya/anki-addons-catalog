@@ -65,3 +65,11 @@ def test_daily_budget_resets_next_day() -> None:
     day[0] = date(2026, 10, 2)
     assert not budget.exhausted()
     assert budget.spent_usd == 0
+
+
+def test_daily_budget_resumes_from_spent_today() -> None:
+    day = [date(2026, 10, 1)]
+    budget = DailyBudget(1.0, PRICING, today=lambda: day[0], spent_today=1.0)
+    assert budget.exhausted()
+    day[0] = date(2026, 10, 2)
+    assert not budget.exhausted()

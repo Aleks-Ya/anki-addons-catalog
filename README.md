@@ -70,4 +70,6 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_TURNSTILE_SITE_KEY` / `_TURNSTILE_SECRET` | | Cloudflare Turnstile bot check for AI search; disabled when unset |
 | `ANKI_CATALOG_SESSION_SECRET` | random | Key that signs the "human verified" cookie; set it so the cookie survives restarts |
 | `ANKI_CATALOG_PASS_TTL_SECONDS` | `3600` | How long a passed bot check lasts |
+| `ANKI_CATALOG_ADMIN_TOKEN` | | Password of the usage page `/admin/usage` (any user name); the page is off when unset |
+| `ANKI_CATALOG_USAGE_DB` | `/data/usage.sqlite3` if `/data` is writable, else in memory | SQLite file with the usage counters |
 | `ANKI_CATALOG_LOG_LEVEL` | `INFO` | Logs go to stderr |

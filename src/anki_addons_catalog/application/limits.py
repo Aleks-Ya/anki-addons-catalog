@@ -75,19 +75,20 @@ class Pricing:
                 + usage.cache_creation_input_tokens * self.cache_write_per_mtok) / 1_000_000
 
 
-def _utc_today() -> date:
+def utc_today() -> date:
     return datetime.now(UTC).date()
 
 
 class DailyBudget:
     """Global AI spend cap in USD that resets at UTC midnight."""
 
-    def __init__(self, limit_usd: float, pricing: Pricing, today: Callable[[], date] = _utc_today) -> None:
+    def __init__(self, limit_usd: float, pricing: Pricing, today: Callable[[], date] = utc_today,
+                 spent_today: float = 0.0) -> None:
         self._limit = limit_usd
         self._pricing = pricing
         self._today = today
         self._day = today()
-        self._spent = 0.0
+        self._spent = spent_today
 
     def _roll(self) -> None:
         if (day := self._today()) != self._day:
