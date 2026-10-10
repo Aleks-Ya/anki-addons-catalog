@@ -46,4 +46,5 @@ class Settings(BaseSettings):
     pass_ttl_seconds: int = 3600
 
     usage_db: str | None = None
+    usage_save_seconds: int = 300
     admin_token: SecretStr | None = None

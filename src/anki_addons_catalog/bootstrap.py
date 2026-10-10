@@ -30,13 +30,13 @@ def create_llm(settings: Settings) -> LlmPort:
     return ClaudeLlm(client, settings.model, settings.effort, settings.max_tokens, settings.fallbacks_enabled)
 
 
-def usage_db_path(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> str:
-    """The configured path, else the HF Space persistent storage if mounted, else in memory."""
+def create_usage(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> UsageStats:
+    """The configured SQLite file, else in memory with a backup in the Space's mounted volume, else in memory only."""
     if settings.usage_db:
-        return settings.usage_db
+        return UsageStats(settings.usage_db)
     if storage.is_dir() and os.access(storage, os.W_OK):
-        return str(storage / "usage.sqlite3")
-    return MEMORY
+        return UsageStats(MEMORY, backup=str(storage / "usage.sqlite3"))
+    return UsageStats(MEMORY)
 
 
 def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:
@@ -50,8 +50,9 @@ def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmP
     catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
     pricing = Pricing(settings.price_input_per_mtok, settings.price_output_per_mtok,
                       settings.price_cache_read_per_mtok, settings.price_cache_write_per_mtok)
-    usage = UsageStats(usage_db_path(settings))
-    log.info("Usage statistics: %s", usage.path if usage.persistent else "in memory (reset on restart)")
+    usage = create_usage(settings)
+    log.info("Usage statistics: %s", f"saved to {usage.backup}" if usage.backup else
+             usage.path if usage.persistent else "in memory (reset on restart)")
     budget = DailyBudget(settings.daily_budget_usd, pricing, spent_today=usage.today(AI_COST_USD))
     ask = AskService(port, llm or create_llm(settings), budget,
                      allowed_tools=settings.ai_tools, max_tool_rounds=settings.max_tool_rounds,
@@ -63,7 +64,7 @@ def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmP
                      limiter=RateLimiter(settings.rate_limit_per_hour), public_url=settings.public_url.rstrip("/"),
                      max_query_chars=settings.max_query_chars, keepalive_seconds=settings.mcp_keepalive_seconds,
                      usage=usage, admin_token=_secret(settings.admin_token),
-                     daily_budget_usd=settings.daily_budget_usd)
+                     daily_budget_usd=settings.daily_budget_usd, usage_save_seconds=settings.usage_save_seconds)
 
     async def close() -> None:
         try:

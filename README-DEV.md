@@ -99,9 +99,13 @@ Run one replica: the rate limiter and the caches live in memory and reset on res
 page views per UTC day. It asks for a login: any user name, password `ANKI_CATALOG_ADMIN_TOKEN`; without that
 secret the page is off. No query text is stored.
 
-The counters live in SQLite at `/data/usage.sqlite3` when the Space has **Persistent storage** (Space settings,
-the small tier is enough); the daily budget resumes from them after a restart. Without persistent storage they are
-kept in memory and reset on restart.
+The counters persist when a Storage Bucket is mounted at `/data`: in the Space settings, attach a private
+bucket (e.g. `Ya-Alex/anki-addons-catalog-data`) read-write at `/data`. The bucket fits in the free storage allowance.
+A bucket mount cannot update a file in place, as SQLite does, so the counters live in an in-memory SQLite database:
+it is restored from `/data/usage.sqlite3` on start and written back as a whole every
+`ANKI_CATALOG_USAGE_SAVE_SECONDS` and on shutdown. A crash loses at most that interval; a damaged file is logged and
+replaced. The daily budget resumes from the restored counters. Without a volume the counters reset on restart. The
+startup log says "Usage statistics: saved to /data/usage.sqlite3".
 
 ### Custom domain (www.anki-addons-catalog.com)
 

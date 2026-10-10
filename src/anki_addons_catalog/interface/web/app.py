@@ -54,6 +54,7 @@ class WebContext:
     usage: UsageStats
     admin_token: str | None = None
     daily_budget_usd: float = 0.0
+    usage_save_seconds: int = 0
 
 
 def _static_hashes() -> dict[str, str]:
@@ -90,13 +91,19 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             await ctx.catalog_port.ping()
             await asyncio.sleep(ctx.keepalive_seconds)
 
+    async def save_usage() -> None:
+        while ctx.usage.backup and ctx.usage_save_seconds > 0:
+            await asyncio.sleep(ctx.usage_save_seconds)
+            await asyncio.to_thread(ctx.usage.save)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        task = asyncio.create_task(keepalive())
+        tasks = [asyncio.create_task(keepalive()), asyncio.create_task(save_usage())]
         try:
             yield
         finally:
-            task.cancel()
+            for task in tasks:
+                task.cancel()
             if close is not None:
                 await close()
 
