@@ -14,6 +14,13 @@ from anki_addons_catalog.domain.models import ToolResult, ToolSpec
 log = logging.getLogger(__name__)
 
 
+def _describe(error: BaseException) -> str:
+    """The innermost errors of an exception group (anyio wraps transport errors in TaskGroup groups)."""
+    if isinstance(error, BaseExceptionGroup):
+        return "; ".join(_describe(e) for e in error.exceptions)
+    return f"{type(error).__name__}: {error}"
+
+
 def _to_result(result: CallToolResult) -> ToolResult:
     text = "\n".join(block.text for block in result.content if isinstance(block, TextContent))
     structured = result.structured_content
@@ -75,7 +82,7 @@ class McpCatalog:
             return await session.client()
         except Exception as e:
             await self._reset(session)
-            raise CatalogUnavailable(f"Cannot connect to the MCP server: {e}") from e
+            raise CatalogUnavailable(f"Cannot connect to the MCP server: {_describe(e)}") from e
 
     async def _reset(self, session: _Session | None = None) -> None:
         async with self._lock:
@@ -96,10 +103,10 @@ class McpCatalog:
             except CatalogUnavailable:
                 raise
             except Exception as e:
-                log.warning("MCP %s failed (attempt %d): %s", operation, attempt, e)
+                log.warning("MCP %s failed (attempt %d): %s", operation, attempt, _describe(e))
                 await self._reset()
                 if attempt == 2:
-                    raise CatalogUnavailable(f"MCP {operation} failed: {e}") from e
+                    raise CatalogUnavailable(f"MCP {operation} failed: {_describe(e)}") from e
         raise AssertionError("unreachable")
 
     async def list_tools(self) -> list[ToolSpec]:
