@@ -25,7 +25,7 @@ from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
 from anki_addons_catalog.domain.models import AnswerEvent
 from anki_addons_catalog.domain.ports import CatalogPort
-from anki_addons_catalog.interface.web.rendering import compact_number, render_markdown, render_readme
+from anki_addons_catalog.interface.web.rendering import compact_number, human_date, render_markdown, render_readme
 from anki_addons_catalog.interface.web.security import PASS_COOKIE, HumanCheck, client_ip
 
 log = logging.getLogger(__name__)
@@ -80,6 +80,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates.env.filters["markdown"] = render_markdown
     templates.env.filters["readme"] = render_readme
     templates.env.filters["compact"] = compact_number
+    templates.env.filters["human_date"] = human_date
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
                                  public_url=ctx.public_url, top_metrics=TOP_METRICS,
                                  static_hash=_static_hashes())

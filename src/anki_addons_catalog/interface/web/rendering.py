@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
@@ -61,3 +62,12 @@ def compact_number(value: Any) -> str:
     if abs(value) >= 1000:
         return f"{value / 1000:.1f}k".replace(".0k", "k")
     return str(value)
+
+
+def human_date(value: str | None) -> str:
+    """"2026-10-01" -> "1 Oct 2026"; anything else is returned as is."""
+    try:
+        day = date.fromisoformat(str(value)[:10])
+    except ValueError:
+        return str(value or "")
+    return f"{day.day} {day:%b %Y}"

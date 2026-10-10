@@ -62,7 +62,7 @@ def test_pages_render(make_client: Any, path: str) -> None:
     assert response.status_code == 200, response.text
     assert "Anki Addons Catalog" in response.text
     assert '<span class="beta"' in response.text
-    assert 'class="dataset-date"' in response.text and "Data of 2026-09-03" in response.text
+    assert 'class="dataset-date"' in response.text and ">3 Sep 2026</a>" in response.text
 
 
 def test_index_lists_top_addons(make_client: Any) -> None:
@@ -207,3 +207,10 @@ def test_admin_usage_counts_searches_and_views(make_client: Any) -> None:
     assert '<small>Page views</small><p class="kpi">3</p>' in html
     assert '<tr><td>search</td><td class="num">2</td></tr>' in html
     assert '<meta name="robots" content="noindex">' in html
+
+
+def test_human_date() -> None:
+    from anki_addons_catalog.interface.web.rendering import human_date
+    assert human_date("2026-10-01") == "1 Oct 2026"
+    assert human_date("2026-09-03T04:05:00+00:00") == "3 Sep 2026"
+    assert human_date("soon") == "soon"
