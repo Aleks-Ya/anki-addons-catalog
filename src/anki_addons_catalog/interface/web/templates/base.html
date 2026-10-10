@@ -13,8 +13,9 @@
 <body>
 <header class="container">
   <nav>
-    <ul><li><a href="/" class="brand"><img src="{{ url_for('static', path='favicon.svg') }}" alt="" width="28" height="28"> <strong>Anki Addons Catalog</strong>
-      <span class="beta" title="The site is new: expect rough edges">Beta</span></a></li></ul>
+    <ul><li class="brand-item"><a href="/" class="brand"><img src="{{ url_for('static', path='favicon.svg') }}" alt="" width="28" height="28"> <strong>Anki Addons Catalog</strong>
+      <span class="beta" title="The site is new: expect rough edges">Beta</span></a>
+      {% if dataset_date %}<a href="/about" class="dataset-date" title="The dataset was created on {{ dataset_date }}; it is refreshed monthly">Data of {{ dataset_date }}</a>{% endif %}</li></ul>
     <ul>
       <li><a href="/top/rating">Top</a></li>
       <li><a href="/changes">What's new</a></li>

@@ -62,6 +62,7 @@ def test_pages_render(make_client: Any, path: str) -> None:
     assert response.status_code == 200, response.text
     assert "Anki Addons Catalog" in response.text
     assert '<span class="beta"' in response.text
+    assert 'class="dataset-date"' in response.text and "Data of 2026-09-03" in response.text
 
 
 def test_index_lists_top_addons(make_client: Any) -> None:
@@ -89,6 +90,17 @@ def test_about_shows_dataset_date(make_client: Any) -> None:
 
 def test_compatibility_verdict(make_client: Any) -> None:
     assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
+
+
+def test_header_has_no_dataset_date_when_catalog_is_down(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from anki_addons_catalog.application.catalog import CatalogService
+    from anki_addons_catalog.domain.errors import CatalogUnavailable
+
+    async def down(self: Any) -> None:
+        raise CatalogUnavailable("down")
+    monkeypatch.setattr(CatalogService, "latest_snapshot_info", down)
+    response = make_client().get("/about")
+    assert response.status_code == 200 and 'class="dataset-date"' not in response.text
 
 
 def test_missing_addon_is_404(make_client: Any) -> None:

@@ -96,6 +96,11 @@ class CatalogService:
         info = await self.latest_snapshot_info()
         return info["date"] if info else None
 
+    async def dataset_date(self) -> str | None:
+        """The day the latest dataset was created (YYYY-MM-DD), or its snapshot date when that is unknown."""
+        info = await self.latest_snapshot_info()
+        return str(info.get("report_generation_date") or info["date"])[:10] if info else None
+
     async def all_addon_ids(self) -> list[int]:
         """Every addon id of the latest snapshot, for the sitemap."""
         ids: list[int] = []

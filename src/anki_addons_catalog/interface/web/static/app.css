@@ -3,6 +3,15 @@
 .beta { padding: .1rem .45rem; border: 1px solid var(--pico-primary); border-radius: .3rem;
         color: var(--pico-primary); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
         line-height: 1.4; }
+.dataset-date { padding: .1rem .45rem; border: 1px solid var(--pico-muted-border-color); border-radius: .3rem;
+                color: var(--pico-muted-color); font-size: .7rem; line-height: 1.4; text-decoration: none; white-space: nowrap; }
+.dataset-date:hover { color: var(--pico-primary); border-color: var(--pico-primary); }
+.brand-item { display: flex; align-items: center; gap: .5rem; }
+@media (max-width: 576px) {
+  .dataset-date { display: none; }
+  header nav { flex-wrap: wrap; }
+  .brand strong { white-space: nowrap; }
+}
 .hero { text-align: center; padding: 2rem 0 1rem; }
 .hero p { max-width: 42rem; margin-inline: auto; }
 .searchbox { display: flex; gap: .5rem; max-width: 46rem; margin: 1rem auto; }

@@ -103,7 +103,15 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                   redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
-    def page(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
+    async def dataset_date() -> str | None:
+        try:
+            return await ctx.catalog.dataset_date()
+        except (CatalogUnavailable, ToolFailed):
+            return None
+
+    async def page(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
+        """Renders a page; every page shows the dataset date in the header (skipped when the catalog is down)."""
+        context.setdefault("dataset_date", await dataset_date() if status_code < 500 else None)
         return templates.TemplateResponse(request, name, context, status_code=status_code)
 
     def view(name: str) -> None:
@@ -120,13 +128,13 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @app.exception_handler(CatalogUnavailable)
     async def catalog_unavailable(request: Request, exc: CatalogUnavailable) -> HTMLResponse:
         log.warning("Catalog unavailable: %s", exc)
-        return page(request, "error.html", 503, title="Catalog is waking up",
+        return await page(request, "error.html", 503, title="Catalog is waking up",
                     message="The addon catalog is starting up. Please reload the page in a minute.")
 
     @app.exception_handler(ToolFailed)
     async def tool_failed(request: Request, exc: ToolFailed) -> HTMLResponse:
         not_found = "not found" in exc.message.lower()
-        return page(request, "error.html", 404 if not_found else 502,
+        return await page(request, "error.html", 404 if not_found else 502,
                     title="Not found" if not_found else "Catalog error", message=exc.message)
 
     @app.get("/healthz")
@@ -137,7 +145,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def index(request: Request) -> HTMLResponse:
         view("home")
         top, recent = await asyncio.gather(ctx.catalog.top("rating", 8), ctx.catalog.top("recently_updated", 8))
-        return page(request, "index.html", examples=EXAMPLES, top=top["items"], recent=recent["items"])
+        return await page(request, "index.html", examples=EXAMPLES, top=top["items"], recent=recent["items"])
 
     @app.get("/search", response_class=HTMLResponse)
     async def search(request: Request, q: str = "", offset: int = 0) -> HTMLResponse:
@@ -146,7 +154,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         if q:
             ctx.usage.add(u.KEYWORD_SEARCH)
         results = await ctx.catalog.search(q, limit=30, offset=max(offset, 0)) if q else None
-        return page(request, "search.html", q=q, results=results, offset=offset)
+        return await page(request, "search.html", q=q, results=results, offset=offset)
 
     @app.post("/api/verify")
     async def verify(request: Request, token: str = Form("")) -> Response:
@@ -209,7 +217,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             ctx.catalog.description(addon_id), return_exceptions=True)
         anki = anki.strip()[:20]
         compatibility = await ctx.catalog.compatibility(addon_id, anki) if anki else None
-        return page(request, "addon.html", a=details,
+        return await page(request, "addon.html", a=details,
                     maintenance=None if isinstance(maintenance, BaseException) else maintenance,
                     similar=[] if isinstance(similar, BaseException) else similar,
                     readme=None if isinstance(readme, BaseException) else readme,
@@ -224,36 +232,32 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def author(request: Request, github_user: str) -> HTMLResponse:
         view("author")
         result = await ctx.catalog.by_author(github_user)
-        return page(request, "list.html", title=f"Addons by {github_user}",
+        return await page(request, "list.html", title=f"Addons by {github_user}",
                     subtitle=f"Addons whose GitHub repository belongs to {github_user}.", cards=result["items"])
 
     @app.get("/top/{metric}", response_class=HTMLResponse)
     async def top(request: Request, metric: str) -> HTMLResponse:
         if metric not in TOP_METRICS:
-            return page(request, "error.html", 404, title="Not found", message=f"Unknown list: {metric}")
+            return await page(request, "error.html", 404, title="Not found", message=f"Unknown list: {metric}")
         view("top")
         result = await ctx.catalog.top(metric, 50)
-        return page(request, "list.html", title=TOP_METRICS[metric], subtitle="Top 50 addons.",
+        return await page(request, "list.html", title=TOP_METRICS[metric], subtitle="Top 50 addons.",
                     cards=result["items"], metric=metric)
 
     @app.get("/stats", response_class=HTMLResponse)
     async def stats(request: Request) -> HTMLResponse:
         view("stats")
-        return page(request, "stats.html", stats=await ctx.catalog.statistics())
+        return await page(request, "stats.html", stats=await ctx.catalog.statistics())
 
     @app.get("/changes", response_class=HTMLResponse)
     async def changes(request: Request) -> HTMLResponse:
         view("changes")
-        return page(request, "changes.html", diff=await ctx.catalog.changes())
+        return await page(request, "changes.html", diff=await ctx.catalog.changes())
 
     @app.get("/about", response_class=HTMLResponse)
     async def about(request: Request) -> HTMLResponse:
         view("about")
-        try:
-            snapshot = await ctx.catalog.latest_snapshot_info()
-        except (CatalogUnavailable, ToolFailed):
-            snapshot = None
-        return page(request, "about.html", snapshot=snapshot)
+        return await page(request, "about.html")
 
     @app.get("/admin/usage", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
     async def admin_usage(request: Request) -> HTMLResponse:
@@ -261,7 +265,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         totals = ctx.usage.totals()
         views = sorted(((k.removeprefix(u.VIEW_PREFIX), v) for k, v in totals.items() if k.startswith(u.VIEW_PREFIX)),
                        key=lambda kv: -kv[1])
-        return page(request, "admin_usage.html", days=days, total=_usage_row(totals), views=views,
+        return await page(request, "admin_usage.html", days=days, total=_usage_row(totals), views=views,
                     since=ctx.usage.first_day(), persistent=ctx.usage.persistent,
                     spent_today=ctx.usage.today(u.AI_COST_USD), daily_budget=ctx.daily_budget_usd)
 
