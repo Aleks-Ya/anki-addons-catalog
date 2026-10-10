@@ -4,7 +4,7 @@
 {% block content %}
 <p><a href="/admin/questions">← Questions</a></p>
 <h1>{{ q.query }}</h1>
-<p>{{ q.asked_at | replace("T", " ") }} · dataset {{ q.snapshot or "unknown" }} · <b>{{ q.outcome }}</b>
+<p>{{ q.asked_at | replace("T", " ") }} · dataset {{ q.snapshot or "unknown" }} · <b>{{ q.outcome }}</b>{% if q.model %} · {{ q.model }}{% endif %}
   · {{ q.rounds }} rounds · {{ q.input_tokens }} in / {{ q.output_tokens }} out
   · cache {{ q.cache_read_tokens }} read / {{ q.cache_write_tokens }} write
   · ${{ "%.4f" | format(q.cost_usd) }} · {{ "%.1f" | format(q.duration_ms / 1000) }} s</p>

@@ -65,4 +65,5 @@ class ClaudeLlm:
         log.info("Claude turn: model=%s stop=%s in=%d out=%d cache_read=%d cache_write=%d", message.model,
                  stop_reason, usage.input_tokens, usage.output_tokens, usage.cache_read_input_tokens,
                  usage.cache_creation_input_tokens)
-        return LlmTurn(assistant_content=message.content, text=text, tool_calls=calls, stop_reason=stop_reason, usage=usage)
+        return LlmTurn(assistant_content=message.content, text=text, tool_calls=calls, stop_reason=stop_reason,
+                       usage=usage, model=message.model)

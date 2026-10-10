@@ -26,7 +26,7 @@ def scripted_llm() -> FakeLlm:
         LlmTurn(assistant_content=[], text="", stop_reason="tool_use", usage=Usage(input_tokens=10),
                 tool_calls=[ToolCall("t1", "search_addons", {"query": "kanji"})]),
         LlmTurn(assistant_content=[], text=f"Try **[Kanji Helper](/addon/{KANJI})**.", tool_calls=[],
-                stop_reason="end_turn", usage=Usage(output_tokens=10)),
+                stop_reason="end_turn", usage=Usage(output_tokens=10), model="claude-haiku-5-5"),
     ])
 
 
@@ -224,9 +224,9 @@ def test_admin_questions(make_client: Any) -> None:
     auth = ("admin", "secret")
     assert 'href="/admin/questions"' in client.get("/admin/usage", auth=auth).text
     html = client.get("/admin/questions", auth=auth).text
-    assert '<a href="/admin/questions/1">kanji</a>' in html and "<td>answered</td>" in html
+    assert '<a href="/admin/questions/1">kanji</a>' in html and "<td>answered</td><td>haiku-5-5</td>" in html
     detail = client.get("/admin/questions/1", auth=auth).text
-    assert "search_addons" in detail and f'<a href="/addon/{KANJI}">Kanji Helper</a>' in detail
+    assert "· claude-haiku-5-5" in detail and "search_addons" in detail and f'<a href="/addon/{KANJI}">Kanji Helper</a>' in detail
     assert client.get("/admin/questions/2", auth=auth).status_code == 404
     export = client.get("/admin/questions.jsonl", auth=auth)
     assert export.headers["content-type"].startswith("application/x-ndjson")

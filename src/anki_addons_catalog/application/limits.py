@@ -67,8 +67,13 @@ class Pricing:
     output_per_mtok: float
     cache_read_per_mtok: float
     cache_write_per_mtok: float
+    long: "Pricing | None" = None  # prices for a prompt over `long_above_tokens` (Haiku 5.5)
+    long_above_tokens: int = 100_000
 
     def cost(self, usage: Usage) -> float:
+        prompt = usage.input_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
+        if self.long and prompt > self.long_above_tokens:
+            return self.long.cost(usage)
         return (usage.input_tokens * self.input_per_mtok
                 + usage.output_tokens * self.output_per_mtok
                 + usage.cache_read_input_tokens * self.cache_read_per_mtok

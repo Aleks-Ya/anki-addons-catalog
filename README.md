@@ -60,10 +60,11 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping the MCP Space this often to keep it awake; `0` disables |
 | `ANKI_CATALOG_MCP_CACHE_TTL_SECONDS` | `3600` | Cache of MCP results for the plain pages |
 | `ANKI_CATALOG_AI_TOOLS` | all except `query_sql` | JSON list of MCP tools Claude may call |
-| `ANKI_CATALOG_MODEL` / `ANKI_CATALOG_EFFORT` | `claude-sonnet-5-5` / `low` | Claude model and effort |
+| `ANKI_CATALOG_MODEL` | `sonnet` | `sonnet` (Claude Sonnet 5.5), `haiku` (Claude Haiku 5.5) or a full model ID; prices and the refusal fallback follow the model |
+| `ANKI_CATALOG_EFFORT` | `low` | Claude effort |
 | `ANKI_CATALOG_MAX_TOKENS` / `ANKI_CATALOG_MAX_TOOL_ROUNDS` | `8000` / `6` | Per-answer limits |
-| `ANKI_CATALOG_FALLBACKS_ENABLED` | `true` | Server-side refusal fallback (`fallbacks: "default"`) |
-| `ANKI_CATALOG_PRICE_*_PER_MTOK` | Sonnet 5.5 prices | Prices used to count the daily spend; update when changing the model |
+| `ANKI_CATALOG_FALLBACKS_ENABLED` | `true` | Server-side refusal fallback (`fallbacks: "default"`), for models that have it (not Haiku 5.5) |
+| `ANKI_CATALOG_PRICE_*_PER_MTOK` | the model's prices | Override the prices used to count the spend; required for a model the app doesn't know |
 | `ANKI_CATALOG_DAILY_BUDGET_USD` | `5` | Global AI spend cap per UTC day; then only keyword search works |
 | `ANKI_CATALOG_RATE_LIMIT_PER_HOUR` | `20` | AI questions per visitor IP per hour; `0` disables |
 | `ANKI_CATALOG_ANSWER_CACHE_TTL_SECONDS` | `86400` | Cache of AI answers per question and snapshot |

@@ -27,7 +27,7 @@ TOOLS = ["search_addons", "get_addon", "check_compatibility"]
 
 def answer(text: str) -> LlmTurn:
     return LlmTurn(assistant_content=[{"type": "text", "text": text}], text=text, tool_calls=[],
-                   stop_reason="end_turn", usage=Usage(input_tokens=1000, output_tokens=200))
+                   stop_reason="end_turn", usage=Usage(input_tokens=1000, output_tokens=200), model="claude-haiku-5-5")
 
 
 def tools(*calls: ToolCall) -> LlmTurn:
@@ -86,6 +86,7 @@ async def test_records_the_question_trace(catalog: McpCatalog) -> None:
     assert call["name"] == "search_addons" and call["arguments"] == {"query": "kanji"}
     assert not call["is_error"] and call["result_chars"] > 0
     assert q["error"] is None and q["duration_ms"] >= 0
+    assert q["model"] == "claude-haiku-5-5"
 
 
 async def test_records_failures_and_refusals(catalog: McpCatalog) -> None:

@@ -7,12 +7,12 @@
   · <a href="/admin/usage">Usage</a></p>
 <div class="overflow-auto">
 <table class="striped">
-  <thead><tr><th>Time</th><th>Question</th><th>Outcome</th><th class="num">Rounds</th><th class="num">Tools</th>
+  <thead><tr><th>Time</th><th>Question</th><th>Outcome</th><th>Model</th><th class="num">Rounds</th><th class="num">Tools</th>
     <th class="num">Tokens in / out</th><th class="num">Cost</th><th class="num">Seconds</th></tr></thead>
   <tbody>
   {% for q in questions %}
     <tr><td>{{ q.asked_at[:16] | replace("T", " ") }}</td><td><a href="/admin/questions/{{ q.id }}">{{ q.query }}</a></td>
-      <td>{{ q.outcome }}</td><td class="num">{{ q.rounds }}</td><td class="num">{{ q.tool_calls }}</td>
+      <td>{{ q.outcome }}</td><td>{{ (q.model or "") | replace("claude-", "") }}</td><td class="num">{{ q.rounds }}</td><td class="num">{{ q.tool_calls }}</td>
       <td class="num">{{ q.input_tokens }} / {{ q.output_tokens }}</td>
       <td class="num">${{ "%.4f" | format(q.cost_usd) }}</td><td class="num">{{ "%.1f" | format(q.duration_ms / 1000) }}</td></tr>
   {% endfor %}

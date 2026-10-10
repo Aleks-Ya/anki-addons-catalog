@@ -236,6 +236,7 @@ class AskService:
             step = _trace_step(turn, turn_cost)
             record.trace.append(step)
             record.rounds = rounds
+            record.model = turn.model or record.model
             record.input_tokens += turn.usage.input_tokens
             record.output_tokens += turn.usage.output_tokens
             record.cache_read_tokens += turn.usage.cache_read_input_tokens

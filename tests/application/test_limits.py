@@ -1,5 +1,7 @@
 from datetime import date
 
+import pytest
+
 from anki_addons_catalog.application.limits import DailyBudget, Pricing, RateLimiter, TtlCache
 from anki_addons_catalog.domain.models import Usage
 
@@ -53,6 +55,13 @@ def test_pricing() -> None:
     usage = Usage(input_tokens=1_000_000, output_tokens=100_000, cache_read_input_tokens=1_000_000,
                   cache_creation_input_tokens=400_000)
     assert PRICING.cost(usage) == 2 + 1 + 0.2 + 1
+
+
+def test_pricing_of_long_prompts() -> None:
+    pricing = Pricing(1, 10, 0.1, 1.25, long=Pricing(5, 50, 0.5, 6.25))
+    assert pricing.cost(Usage(input_tokens=100_000, output_tokens=1_000_000)) == 0.1 + 10
+    assert pricing.cost(Usage(input_tokens=1, cache_read_input_tokens=100_000)) == pytest.approx(5e-6 + 0.05)
+    assert pricing.cost(Usage(input_tokens=60_000, cache_creation_input_tokens=60_000)) == pytest.approx(0.3 + 0.375)
 
 
 def test_daily_budget_resets_next_day() -> None:

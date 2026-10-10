@@ -9,7 +9,7 @@ from anki_addons_catalog.adapters.claude.llm import ClaudeLlm
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.ask import AskService
 from anki_addons_catalog.application.catalog import CatalogService
-from anki_addons_catalog.application.limits import DailyBudget, Pricing, RateLimiter
+from anki_addons_catalog.application.limits import DailyBudget, RateLimiter
 from anki_addons_catalog.application.usage import AI_COST_USD, MEMORY, UsageStats
 from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
@@ -27,7 +27,8 @@ def _secret(value: object) -> str | None:
 
 def create_llm(settings: Settings) -> LlmPort:
     client = anthropic.AsyncAnthropic(api_key=_secret(settings.anthropic_api_key))  # None: ANTHROPIC_API_KEY
-    return ClaudeLlm(client, settings.model, settings.effort, settings.max_tokens, settings.fallbacks_enabled)
+    fallbacks = settings.fallbacks_enabled and settings.model_profile().fallbacks
+    return ClaudeLlm(client, settings.model, settings.effort, settings.max_tokens, fallbacks)
 
 
 def create_usage(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> UsageStats:
@@ -49,8 +50,10 @@ def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmP
                          headers={"Authorization": f"Bearer {hf_token}"} if hf_token else None)
     port: CatalogPort = catalog or mcp  # type: ignore[assignment]
     catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
-    pricing = Pricing(settings.price_input_per_mtok, settings.price_output_per_mtok,
-                      settings.price_cache_read_per_mtok, settings.price_cache_write_per_mtok)
+    profile = settings.model_profile()
+    pricing = profile.pricing
+    log.info("Claude model: %s ($%g/$%g per MTok, effort %s, fallbacks %s)", settings.model, pricing.input_per_mtok,
+             pricing.output_per_mtok, settings.effort, "on" if settings.fallbacks_enabled and profile.fallbacks else "off")
     usage = create_usage(settings)
     log.info("Usage statistics: %s", f"saved to {usage.backup}" if usage.backup else
              usage.path if usage.persistent else "in memory (reset on restart)")

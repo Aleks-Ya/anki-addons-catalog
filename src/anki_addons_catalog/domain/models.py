@@ -77,6 +77,7 @@ class LlmTurn:
     tool_calls: list[ToolCall]
     stop_reason: StopReason
     usage: Usage = field(default_factory=Usage)
+    model: str = ""  # the model that answered (with the refusal fallback it can differ from the requested one)
 
 
 EventType = Literal["status", "text", "addons", "answer", "error", "done"]

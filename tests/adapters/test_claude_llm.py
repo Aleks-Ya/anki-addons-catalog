@@ -77,6 +77,7 @@ async def test_streams_text_and_parses_tool_calls() -> None:
     assert [(c.id, c.name, c.arguments) for c in turn.tool_calls] == [("tu_1", "search_addons", {"query": "kanji"})]
     assert turn.usage.cache_read_input_tokens == 900
     assert turn.usage.output_tokens == 40
+    assert turn.model == "claude-sonnet-5-5"
 
     sent = json.loads(requests[0].content)
     assert sent["model"] == "claude-sonnet-5-5"

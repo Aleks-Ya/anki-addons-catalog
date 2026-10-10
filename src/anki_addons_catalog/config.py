@@ -1,7 +1,26 @@
+from dataclasses import dataclass, replace
 from typing import Literal
 
-from pydantic import AliasChoices, Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from anki_addons_catalog.application.limits import Pricing
+
+
+@dataclass(frozen=True)
+class ModelProfile:
+    """What the app needs to know about a Claude model: its prices and whether it has the server-side fallback."""
+    pricing: Pricing
+    fallbacks: bool
+
+
+# Prices per MTok from https://platform.claude.com/docs/en/about-claude/pricing (5-minute cache writes).
+MODELS: dict[str, ModelProfile] = {
+    "claude-sonnet-5-5": ModelProfile(Pricing(2.0, 10.0, 0.10, 2.5), fallbacks=True),
+    "claude-haiku-5-5": ModelProfile(Pricing(0.10, 0.50, 0.01, 0.125, long=Pricing(0.50, 2.50, 0.05, 0.625)),
+                                     fallbacks=False),
+}
+MODEL_ALIASES = {"sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
 
 
 class Settings(BaseSettings):
@@ -25,16 +44,16 @@ class Settings(BaseSettings):
 
     anthropic_api_key: SecretStr | None = Field(
         default=None, validation_alias=AliasChoices("ANTHROPIC_API_KEY", "ANKI_CATALOG_ANTHROPIC_API_KEY"))
-    model: str = "claude-sonnet-5-5"
+    model: str = "sonnet"
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
     max_tokens: int = 8000
     max_tool_rounds: int = 6
     max_query_chars: int = 500
     fallbacks_enabled: bool = True
-    price_input_per_mtok: float = 2.0
-    price_output_per_mtok: float = 10.0
-    price_cache_read_per_mtok: float = 0.2
-    price_cache_write_per_mtok: float = 2.5
+    price_input_per_mtok: float | None = None  # override the model's prices; required for a model not in MODELS
+    price_output_per_mtok: float | None = None
+    price_cache_read_per_mtok: float | None = None
+    price_cache_write_per_mtok: float | None = None
 
     daily_budget_usd: float = 5.0
     rate_limit_per_hour: int = 20
@@ -49,3 +68,23 @@ class Settings(BaseSettings):
     usage_save_seconds: int = 300
     question_days: int = 90
     admin_token: SecretStr | None = None
+
+    @field_validator("model")
+    @classmethod
+    def _resolve_alias(cls, value: str) -> str:
+        value = value.strip()
+        return MODEL_ALIASES.get(value.lower(), value)
+
+    def model_profile(self) -> ModelProfile:
+        """The profile of `model` with the configured price overrides; an unknown model needs all four prices."""
+        prices = {"input_per_mtok": self.price_input_per_mtok, "output_per_mtok": self.price_output_per_mtok,
+                  "cache_read_per_mtok": self.price_cache_read_per_mtok,
+                  "cache_write_per_mtok": self.price_cache_write_per_mtok}
+        overrides = {name: price for name, price in prices.items() if price is not None}
+        profile = MODELS.get(self.model)
+        if profile is None:
+            if len(overrides) < len(prices):
+                raise ValueError(f"Unknown model {self.model!r}: set all ANKI_CATALOG_PRICE_* settings or use one of "
+                                 f"{', '.join([*MODEL_ALIASES, *MODELS])}")
+            return ModelProfile(Pricing(**overrides), fallbacks=False)  # type: ignore[arg-type]
+        return replace(profile, pricing=replace(profile.pricing, **overrides)) if overrides else profile  # type: ignore[arg-type]

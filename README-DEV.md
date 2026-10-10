@@ -93,6 +93,18 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 
 Run one replica: the rate limiter and the caches live in memory and reset on restart.
 
+### Change the AI model
+
+Set the Space variable `ANKI_CATALOG_MODEL` to `haiku` (Claude Haiku 5.5) or `sonnet` (Claude Sonnet 5.5, the
+default); the Space restarts. The prices for the daily budget and the question log, and whether the server-side
+refusal fallback is sent, follow the model (`MODELS` in `config.py`). The startup log confirms the switch:
+"Claude model: claude-haiku-5-5 ($0.1/$0.5 per MTok, effort low, fallbacks off)". `/admin/questions` shows which
+model answered each question, so the cost and answers of both models can be compared.
+
+To support a new model, add it to `MODELS` with the prices from the
+[pricing page](https://platform.claude.com/docs/en/about-claude/pricing), and point an alias at it if it replaces
+one. Any other model ID also works when all four `ANKI_CATALOG_PRICE_*_PER_MTOK` settings are set.
+
 ### Usage statistics
 
 `/admin/usage` shows keyword searches, AI questions by outcome (answered, cached, failed, blocked), AI spend and

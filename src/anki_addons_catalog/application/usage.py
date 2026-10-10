@@ -28,7 +28,7 @@ MEMORY = ":memory:"
 
 _QUESTION_COLUMNS = ("asked_at", "query", "snapshot", "outcome", "rounds", "input_tokens", "output_tokens",
                      "cache_read_tokens", "cache_write_tokens", "cost_usd", "duration_ms", "answer", "addon_ids",
-                     "trace", "error")
+                     "trace", "error", "model")
 _JSON_COLUMNS = ("addon_ids", "trace")
 
 
@@ -56,6 +56,7 @@ class QuestionRecord:
     addon_ids: list[int] = field(default_factory=list)
     trace: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
+    model: str | None = None
 
 
 class UsageStats:
@@ -85,8 +86,10 @@ class UsageStats:
                          "query TEXT NOT NULL, snapshot TEXT, outcome TEXT NOT NULL, rounds INTEGER, "
                          "input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, "
                          "cache_write_tokens INTEGER, cost_usd REAL, duration_ms INTEGER, answer TEXT, "
-                         "addon_ids TEXT, trace TEXT, error TEXT)")
+                         "addon_ids TEXT, trace TEXT, error TEXT, model TEXT)")
         self._db.execute("CREATE INDEX IF NOT EXISTS questions_asked_at ON questions (asked_at)")
+        if "model" not in {row[1] for row in self._db.execute("PRAGMA table_info(questions)")}:
+            self._db.execute("ALTER TABLE questions ADD COLUMN model TEXT")  # a backup from before the column
         self._saved_changes = self._db.total_changes
         self._save_lock = threading.Lock()
 
@@ -165,7 +168,7 @@ class UsageStats:
     def questions(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """Questions newest first, without the answer and the trace (but with the number of tool calls)."""
         rows = self._db.execute(
-            "SELECT id, asked_at, query, outcome, rounds, input_tokens, output_tokens, cost_usd, duration_ms, "
+            "SELECT id, asked_at, query, outcome, rounds, input_tokens, output_tokens, cost_usd, duration_ms, model, "
             "(SELECT COUNT(*) FROM json_each(trace) AS r, json_each(r.value, '$.tools')) AS tool_calls "
             "FROM questions ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset))
         return [self._as_dict(rows, row) for row in rows.fetchall()]

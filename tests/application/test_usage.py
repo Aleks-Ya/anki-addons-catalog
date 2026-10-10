@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -77,6 +78,21 @@ def test_create_usage_prefers_setting_then_mounted_volume(tmp_path: Path) -> Non
     file_db = str(tmp_path / "x.db")
     explicit = create_usage(Settings(_env_file=None, usage_db=file_db), storage=tmp_path)  # type: ignore[call-arg]
     assert explicit.path == file_db and explicit.backup is None
+
+
+def test_backup_without_the_model_column_gets_it(tmp_path: Path) -> None:
+    backup = tmp_path / "usage.sqlite3"
+    old = sqlite3.connect(backup)
+    old.execute("CREATE TABLE questions (id INTEGER PRIMARY KEY, asked_at TEXT NOT NULL, query TEXT NOT NULL, "
+                "snapshot TEXT, outcome TEXT NOT NULL, rounds INTEGER, input_tokens INTEGER, output_tokens INTEGER, "
+                "cache_read_tokens INTEGER, cache_write_tokens INTEGER, cost_usd REAL, duration_ms INTEGER, "
+                "answer TEXT, addon_ids TEXT, trace TEXT, error TEXT)")
+    old.execute("INSERT INTO questions (asked_at, query, outcome) VALUES ('2099-01-01T00:00:00+00:00', 'old', 'x')")
+    old.commit()
+    old.close()
+    usage = UsageStats(backup=str(backup))
+    usage.record_question(QuestionRecord("new", model="claude-haiku-5-5"))
+    assert [(q["query"], q["model"]) for q in usage.questions()] == [("new", "claude-haiku-5-5"), ("old", None)]
 
 
 def test_questions_round_trip() -> None:
