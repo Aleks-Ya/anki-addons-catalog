@@ -73,6 +73,13 @@ def test_addon_page_renders_readme_safely(make_client: Any) -> None:
     assert 'href="https://x.org" rel="nofollow noopener noreferrer" target="_blank"' in html
 
 
+def test_addon_page_resolves_relative_readme_links_against_github(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert 'href="https://github.com/alice/kanji-helper/blob/HEAD/docs/manual.md"' in html
+    assert 'src="https://github.com/alice/kanji-helper/raw/HEAD/img/a.png"' in html
+    assert 'href="#usage"' in html
+
+
 def test_compatibility_verdict(make_client: Any) -> None:
     assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
 

@@ -40,7 +40,7 @@ def latest_addons() -> list[AddonDetails]:
     return [
         _addon(KANJI, "Kanji Helper", rating=120, update_date="2026-08-20", anki_version="25.02~",
                summary="Shows kanji stroke order.", description="Kanji stroke order and readings.",
-               user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org)."),
+               user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)"),
         _addon(OCCLUSION, "Image Occlusion Plus", rating=300, update_date="2026-08-01", anki_version="2.1.66~",
                summary="Creates image occlusion cards.", description="Hide parts of an image.", user="bob",
                stars=500),

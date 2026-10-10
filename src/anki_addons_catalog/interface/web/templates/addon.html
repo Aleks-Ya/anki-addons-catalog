@@ -85,7 +85,7 @@
 {% if readme %}
 <section>
   <h2>README</h2>
-  <article class="readme">{{ readme | markdown | safe }}</article>
+  <article class="readme">{{ readme | readme(gh.user if gh else none, gh.repo if gh else none) | safe }}</article>
 </section>
 {% elif description %}
 <section>
