@@ -1,0 +1,73 @@
+---
+title: Anki Addons Catalog
+emoji: 🔎
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: AI-powered search over every Anki addon
+---
+
+# Anki Addons Catalog
+
+A web catalog of [Anki](https://apps.ankiweb.net) addons with AI-powered search: https://anki-addons-catalog.com
+
+Ask in plain words ("image occlusion that works on Anki 25.02"). Claude searches the catalog through the
+[Anki Addons MCP server](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp), checks compatibility and maintenance,
+and recommends the best fits. Plain catalog pages (addon details, top lists, author pages, statistics, monthly
+changes) work without AI.
+
+## Links
+- Website: https://anki-addons-catalog.com
+- [HuggingFace Space](https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog) that hosts the website
+- [Anki Addons MCP server](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp)
+  ([sources](https://github.com/Aleks-Ya/anki-addons-mcp)), the data access layer
+- [Anki Addons dataset](https://huggingface.co/datasets/Ya-Alex/anki-addons)
+  ([sources](https://github.com/Aleks-Ya/anki-addons-dataset)), the data
+- [Developer Guide](README-DEV.md): running from sources, tests, architecture, deployment
+
+## Architecture
+
+```
+Browser ──> anki-addons-catalog.com (Cloudflare DNS → HuggingFace custom domain)
+              │
+              HF Space "Ya-Alex/anki-addons-catalog" (Docker, FastAPI)
+              ├── HTML pages (Jinja2)          ── MCP tools ──┐
+              └── /api/ask (Server-Sent Events)                │
+                    └── Claude tool-use loop ── MCP tools ─────┤
+                          │                                    ▼
+                          ▼                     HF Space "Ya-Alex/anki-addons-mcp" /mcp
+                    Anthropic API                              │
+                                                               ▼
+                                                 HF dataset "Ya-Alex/anki-addons"
+```
+
+## Configuration
+
+Environment variables (prefix `ANKI_CATALOG_`, also read from `.env`). `ANTHROPIC_API_KEY` is read by the
+Anthropic SDK directly.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | | Claude API key (a Space secret) |
+| `ANKI_CATALOG_HOST` / `ANKI_CATALOG_PORT` | `127.0.0.1` / `8000` | HTTP binding (`0.0.0.0` / `7860` in Docker) |
+| `ANKI_CATALOG_PUBLIC_URL` | `https://anki-addons-catalog.com` | Base URL for the sitemap and canonical links |
+| `ANKI_CATALOG_MCP_URL` | `https://ya-alex-anki-addons-mcp.hf.space/mcp` | MCP server endpoint |
+| `ANKI_CATALOG_MCP_TIMEOUT_SECONDS` | `120` | MCP read timeout (covers a Space waking up) |
+| `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping the MCP Space this often to keep it awake; `0` disables |
+| `ANKI_CATALOG_MCP_CACHE_TTL_SECONDS` | `3600` | Cache of MCP results for the plain pages |
+| `ANKI_CATALOG_AI_TOOLS` | all except `query_sql` | JSON list of MCP tools Claude may call |
+| `ANKI_CATALOG_MODEL` / `ANKI_CATALOG_EFFORT` | `claude-sonnet-5-5` / `low` | Claude model and effort |
+| `ANKI_CATALOG_MAX_TOKENS` / `ANKI_CATALOG_MAX_TOOL_ROUNDS` | `8000` / `6` | Per-answer limits |
+| `ANKI_CATALOG_FALLBACKS_ENABLED` | `true` | Server-side refusal fallback (`fallbacks: "default"`) |
+| `ANKI_CATALOG_PRICE_*_PER_MTOK` | Sonnet 5.5 prices | Prices used to count the daily spend; update when changing the model |
+| `ANKI_CATALOG_DAILY_BUDGET_USD` | `5` | Global AI spend cap per UTC day; then only keyword search works |
+| `ANKI_CATALOG_RATE_LIMIT_PER_HOUR` | `20` | AI questions per visitor IP per hour; `0` disables |
+| `ANKI_CATALOG_ANSWER_CACHE_TTL_SECONDS` | `86400` | Cache of AI answers per question and snapshot |
+| `ANKI_CATALOG_MAX_QUERY_CHARS` | `500` | Maximum question length |
+| `ANKI_CATALOG_TURNSTILE_SITE_KEY` / `_TURNSTILE_SECRET` | | Cloudflare Turnstile bot check for AI search; disabled when unset |
+| `ANKI_CATALOG_SESSION_SECRET` | random | Key that signs the "human verified" cookie; set it so the cookie survives restarts |
+| `ANKI_CATALOG_PASS_TTL_SECONDS` | `3600` | How long a passed bot check lasts |
+| `ANKI_CATALOG_LOG_LEVEL` | `INFO` | Logs go to stderr |

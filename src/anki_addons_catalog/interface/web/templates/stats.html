@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Statistics – Anki Addons Catalog{% endblock %}
+{% block content %}
+{% set agg = stats.aggregation %}
+<h1>Anki addon statistics</h1>
+<p>Snapshot of {{ stats.snapshot }}.</p>
+<div class="grid kpis">
+  <article><small>Addons</small><p class="kpi">{{ agg.addon_number }}</p></article>
+  <article><small>With GitHub repository</small><p class="kpi">{{ agg.addon_with_github_number }}</p></article>
+  <article><small>With Anki Forum topic</small><p class="kpi">{{ agg.addon_with_anki_forum_page_number }}</p></article>
+  <article><small>With unit tests</small><p class="kpi">{{ agg.addon_with_unit_tests_number }}</p></article>
+</div>
+<div class="groups">
+{% for g in stats.groups %}
+  <article>
+    <h3>{{ g.field | replace("_", " ") | capitalize }} <small>({{ g.distinct_values }} distinct)</small></h3>
+    {% set total = g.counts.values() | sum %}
+    <table class="bars"><tbody>
+    {% for value, count in g.counts.items() %}
+      <tr><td>{{ value }}</td><td class="num">{{ count }}</td>
+        <td class="bar"><span style="width: {{ (100 * count / total) | round(1) if total else 0 }}%"></span></td></tr>
+    {% endfor %}
+    </tbody></table>
+  </article>
+{% endfor %}
+</div>
+{% endblock %}

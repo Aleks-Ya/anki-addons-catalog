@@ -1,0 +1,20 @@
+<div class="cards">
+{% for c in cards %}
+  <article class="card">
+    <header>
+      <a href="/addon/{{ c.id }}"><strong>{{ c.title }}</strong></a>
+      {% if c.github_archived %}<mark>archived</mark>{% endif %}
+    </header>
+    {% if c.ai_summary %}<p class="summary" title="AI-generated summary; may contain mistakes">{{ c.ai_summary }}</p>{% endif %}
+    <footer class="meta">
+      <span title="AnkiWeb rating">Rating {{ c.rating }}</span>
+      <span title="Likes / dislikes">👍 {{ c.likes | compact }} · 👎 {{ c.dislikes | compact }}</span>
+      {% if c.github_stars is not none %}<span title="GitHub stars">⭐ {{ c.github_stars | compact }}</span>{% endif %}
+      {% if c.anki_version %}<span title="Supported Anki versions">Anki {{ c.anki_version }}</span>{% endif %}
+      {% if c.update_date %}<span title="Last update on AnkiWeb">Updated {{ c.update_date[:10] }}</span>{% endif %}
+    </footer>
+  </article>
+{% else %}
+  <p>No addons found.</p>
+{% endfor %}
+</div>

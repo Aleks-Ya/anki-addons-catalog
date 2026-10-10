@@ -1,0 +1,39 @@
+import anthropic
+from fastapi import FastAPI
+
+from anki_addons_catalog.adapters.claude.llm import ClaudeLlm
+from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
+from anki_addons_catalog.application.ask import AskService
+from anki_addons_catalog.application.catalog import CatalogService
+from anki_addons_catalog.application.limits import DailyBudget, Pricing, RateLimiter
+from anki_addons_catalog.config import Settings
+from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
+from anki_addons_catalog.interface.web.app import WebContext, create_web_app
+from anki_addons_catalog.interface.web.security import HumanCheck
+
+
+def _secret(value: object) -> str | None:
+    return value.get_secret_value() if value is not None else None  # type: ignore[attr-defined]
+
+
+def create_llm(settings: Settings) -> LlmPort:
+    client = anthropic.AsyncAnthropic(api_key=_secret(settings.anthropic_api_key))  # None: ANTHROPIC_API_KEY
+    return ClaudeLlm(client, settings.model, settings.effort, settings.max_tokens, settings.fallbacks_enabled)
+
+
+def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:
+    mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds) if catalog is None else None
+    port: CatalogPort = catalog or mcp  # type: ignore[assignment]
+    catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
+    pricing = Pricing(settings.price_input_per_mtok, settings.price_output_per_mtok,
+                      settings.price_cache_read_per_mtok, settings.price_cache_write_per_mtok)
+    ask = AskService(port, llm or create_llm(settings), DailyBudget(settings.daily_budget_usd, pricing),
+                     allowed_tools=settings.ai_tools, max_tool_rounds=settings.max_tool_rounds,
+                     answer_cache_ttl_seconds=settings.answer_cache_ttl_seconds,
+                     snapshot=catalog_service.latest_snapshot)
+    human = HumanCheck(settings.turnstile_site_key, _secret(settings.turnstile_secret),
+                       _secret(settings.session_secret), settings.pass_ttl_seconds)
+    ctx = WebContext(catalog_port=port, catalog=catalog_service, ask=ask, human=human,
+                     limiter=RateLimiter(settings.rate_limit_per_hour), public_url=settings.public_url.rstrip("/"),
+                     max_query_chars=settings.max_query_chars, keepalive_seconds=settings.mcp_keepalive_seconds)
+    return create_web_app(ctx, close=mcp.close if mcp else None)

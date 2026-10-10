@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Anki Addons Catalog{% endblock %}</title>
+  <meta name="description" content="{% block description %}Find Anki addons by asking in plain words. AI-powered search over every addon on AnkiWeb, with ratings, compatibility and maintenance data.{% endblock %}">
+  {% block head %}{% endblock %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v={{ version }}">
+  <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+<header class="container">
+  <nav>
+    <ul><li><a href="/" class="brand"><img src="{{ url_for('static', path='favicon.svg') }}" alt="" width="28" height="28"> <strong>Anki Addons Catalog</strong></a></li></ul>
+    <ul>
+      <li><a href="/top/rating">Top</a></li>
+      <li><a href="/changes">What's new</a></li>
+      <li><a href="/stats">Stats</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+  </nav>
+</header>
+<main class="container">
+{% block content %}{% endblock %}
+</main>
+<footer class="container">
+  <small>
+    Data: <a href="https://huggingface.co/datasets/Ya-Alex/anki-addons">Anki Addons dataset</a>
+    via the <a href="https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp">Anki Addons MCP server</a>.
+    AI answers by Claude may contain mistakes. Not affiliated with AnkiWeb. v{{ version }}
+  </small>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

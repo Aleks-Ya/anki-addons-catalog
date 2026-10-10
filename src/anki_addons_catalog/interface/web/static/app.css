@@ -1,0 +1,47 @@
+:root { --cards-min: 18rem; }
+.brand { display: inline-flex; align-items: center; gap: .5rem; text-decoration: none; }
+.hero { text-align: center; padding: 2rem 0 1rem; }
+.hero p { max-width: 42rem; margin-inline: auto; }
+.searchbox { display: flex; gap: .5rem; max-width: 46rem; margin: 1rem auto; }
+.searchbox input { flex: 1; margin-bottom: 0; }
+.searchbox button { width: auto; margin-bottom: 0; }
+.examples { font-size: .9rem; }
+h2 small, h3 small { font-size: .8rem; font-weight: normal; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--cards-min), 100%), 1fr)); gap: 1rem; }
+.cards .card { margin: 0; display: flex; flex-direction: column; }
+.cards .card header { margin-bottom: .5rem; }
+.cards .card .summary { flex: 1; font-size: .9rem; }
+.cards .card footer.meta { margin-top: .5rem; font-size: .8rem; display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
+
+.ai { border-left: 4px solid var(--pico-primary); padding-left: 1rem; margin-bottom: 2rem; }
+.answer.streaming { white-space: pre-wrap; }
+.status .error { color: var(--pico-del-color); }
+.disclaimer { color: var(--pico-muted-color); }
+.pager { display: flex; justify-content: space-between; margin-top: 1rem; }
+
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.facts { margin-bottom: 2rem; }
+.facts article { margin: 0; }
+.facts dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
+.facts dd { margin: 0; }
+.readme { overflow-x: auto; }
+.readme img { max-width: 100%; }
+.description { white-space: pre-wrap; }
+.summary footer { margin-top: .5rem; }
+
+mark.label-active, mark.verdict-supported { background: #bbf7d0; color: #14532d; }
+mark.label-stale, mark.verdict-likely { background: #fef08a; color: #713f12; }
+mark.label-abandoned, mark.verdict-unsupported { background: #fecaca; color: #7f1d1d; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-bottom: 1rem; }
+.tabs a[aria-current="page"] { font-weight: bold; text-decoration: underline; }
+.kpis article { margin: 0; text-align: center; }
+.kpi { font-size: 2rem; font-weight: bold; margin: 0; }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(24rem, 100%), 1fr)); gap: 1rem; margin-top: 1rem; }
+.groups article { margin: 0; }
+td.num, th.num { text-align: right; }
+.bars td { padding: .2rem .4rem; font-size: .85rem; }
+.bars td.bar { width: 40%; }
+.bars td.bar span { display: block; height: .6rem; background: var(--pico-primary); border-radius: 2px; }
+footer.container { margin-top: 3rem; color: var(--pico-muted-color); }

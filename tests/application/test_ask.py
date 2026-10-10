@@ -1,0 +1,141 @@
+from datetime import date
+from typing import Any
+
+import pytest
+
+from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
+from anki_addons_catalog.application.ask import (
+    FINAL_ROUND_NOTE,
+    AskService,
+    BudgetExhausted,
+    extract_cards,
+    normalize_query,
+    referenced_ids,
+)
+from anki_addons_catalog.application.limits import DailyBudget, Pricing
+from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, Usage
+from tests.conftest import FakeLlm
+from tests.fixtures import KANJI, OCCLUSION
+
+pytestmark = pytest.mark.anyio
+
+PRICING = Pricing(2, 10, 0.2, 2.5)
+TOOLS = ["search_addons", "get_addon", "check_compatibility"]
+
+
+def answer(text: str) -> LlmTurn:
+    return LlmTurn(assistant_content=[{"type": "text", "text": text}], text=text, tool_calls=[],
+                   stop_reason="end_turn", usage=Usage(input_tokens=1000, output_tokens=200))
+
+
+def tools(*calls: ToolCall) -> LlmTurn:
+    content = [{"type": "tool_use", "id": c.id, "name": c.name, "input": c.arguments} for c in calls]
+    return LlmTurn(assistant_content=content, text="", tool_calls=list(calls), stop_reason="tool_use",
+                   usage=Usage(input_tokens=1000, output_tokens=50))
+
+
+def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_rounds: int = 3) -> AskService:
+    async def snapshot() -> str:
+        return "2026-09-01"
+    return AskService(catalog, llm, DailyBudget(budget_usd, PRICING, today=lambda: date(2026, 10, 1)),
+                      allowed_tools=TOOLS, max_tool_rounds=max_rounds, snapshot=snapshot)
+
+
+async def collect(ask: AskService, query: str) -> list[AnswerEvent]:
+    return [event async for event in ask.ask(query)]
+
+
+async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:
+    llm = FakeLlm([
+        tools(ToolCall("t1", "search_addons", {"query": "kanji"}),
+              ToolCall("t2", "check_compatibility", {"addon_ids": [KANJI], "anki_version": "25.02"})),
+        answer(f"Use [Kanji Helper](/addon/{KANJI})."),
+    ])
+    events = await collect(service(catalog, llm), "  kanji   for 25.02 ")
+
+    types = [e.type for e in events]
+    assert types[-3:] == ["answer", "addons", "done"]
+    assert "Searching for “kanji”" in [e.data for e in events if e.type == "status"]
+    assert "".join(e.data for e in events if e.type == "text") == f"Use [Kanji Helper](/addon/{KANJI})."
+    cards = next(e.data for e in events if e.type == "addons")
+    assert [c["id"] for c in cards] == [KANJI]
+
+    assert {t.name for t in llm.tools} == set(TOOLS)
+    assert llm.requests[0][0]["content"] == "(Dataset snapshot: 2026-09-01.)\n\nkanji for 25.02"
+    results = llm.requests[1][-1]["content"]
+    assert [r["tool_use_id"] for r in results] == ["t1", "t2"]
+    assert all(not r["is_error"] for r in results)
+
+
+async def test_answers_are_cached(catalog: McpCatalog) -> None:
+    llm = FakeLlm([answer("Nothing fits.")])
+    ask = service(catalog, llm)
+    first = await collect(ask, "Kanji")
+    second = await collect(ask, "kanji")
+    assert [e.type for e in second] == ["answer", "addons", "done"]
+    assert second == first[-3:]
+    assert len(llm.requests) == 1
+
+
+async def test_budget_exhausted(catalog: McpCatalog) -> None:
+    ask = service(catalog, FakeLlm([answer("a")]), budget_usd=0)
+    with pytest.raises(BudgetExhausted):
+        await collect(ask, "kanji")
+
+
+async def test_refusal(catalog: McpCatalog) -> None:
+    refusal = LlmTurn(assistant_content=[], text="", tool_calls=[], stop_reason="refusal")
+    events = await collect(service(catalog, FakeLlm([refusal])), "bad")
+    assert [e.type for e in events] == ["status", "error"]
+
+
+async def test_last_round_asks_for_the_answer(catalog: McpCatalog) -> None:
+    call = ToolCall("t", "search_addons", {"query": "x"})
+    llm = FakeLlm([tools(call), tools(call), answer("Final.")])
+    events = await collect(service(catalog, llm, max_rounds=2), "q")
+    assert events[-3].data == "Final."
+    assert llm.requests[2][-1]["content"][-1] == {"type": "text", "text": FINAL_ROUND_NOTE}
+
+
+async def test_stops_after_max_rounds_even_if_model_keeps_calling(catalog: McpCatalog) -> None:
+    call = ToolCall("t", "search_addons", {"query": "x"})
+    first = tools(call)
+    first.text = "Partial answer."
+    llm = FakeLlm([first, tools(call)])
+    events = await collect(service(catalog, llm, max_rounds=1), "q")
+    assert [e.data for e in events if e.type == "answer"] == ["Partial answer."]
+    assert len(llm.requests) == 2
+
+
+async def test_unknown_tool_and_tool_errors_are_reported_to_the_model(catalog: McpCatalog) -> None:
+    llm = FakeLlm([tools(ToolCall("t1", "query_sql", {"sql_query": "SELECT 1"}),
+                         ToolCall("t2", "get_addon", {"addon_id": 42})), answer("Sorry.")])
+    await collect(service(catalog, llm), "q")
+    results = llm.requests[1][-1]["content"]
+    assert [r["is_error"] for r in results] == [True, True]
+
+
+async def test_empty_answer_is_an_error(catalog: McpCatalog) -> None:
+    events = await collect(service(catalog, FakeLlm([answer("")])), "q")
+    assert events[-1].type == "error"
+
+
+def test_extract_cards_from_tool_results() -> None:
+    cards: dict[int, AddonCard] = {}
+    page = {"items": [{"id": 1, "title": "A", "url": "u", "rating": 1}], "total": 1}
+    similar = [{"card": {"id": 2, "title": "B", "url": "u"}, "score": 0.5, "reasons": []}]
+    details: dict[str, Any] = {"id": 3, "anki_web": {"title": "C", "addon_page_url": "u"}, "github": None}
+    extract_cards(page, cards)
+    extract_cards(similar, cards)
+    extract_cards(details, cards)
+    assert sorted(cards) == [1, 2, 3]
+    assert cards[3].title == "C"
+
+
+def test_referenced_ids_in_order_without_duplicates() -> None:
+    text = f"[B](/addon/{OCCLUSION}) and [A](https://ankiweb.net/shared/info/{KANJI}) and [B](/addon/{OCCLUSION})"
+    assert referenced_ids(text) == [OCCLUSION, KANJI]
+
+
+def test_normalize_query() -> None:
+    assert normalize_query("  a \n b  ") == "a b"

@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anki-addons-catalog"
+dynamic = ["version"]
+description = "Web catalog of Anki addons with AI-powered search (Claude + the Anki Addons MCP server)."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Aleksey Yablokov", email = "alex_ya@mailbox.org" }]
+dependencies = [
+    "anthropic",
+    "mcp",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "httpx",
+    "markdown-it-py",
+    "pydantic>=2",
+    "pydantic-settings",
+]
+
+[project.urls]
+Homepage = "https://anki-addons-catalog.com"
+Repository = "https://github.com/Aleks-Ya/anki-addons-catalog"
+"MCP server" = "https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp"
+Dataset = "https://huggingface.co/datasets/Ya-Alex/anki-addons"
+
+[project.scripts]
+anki-addons-catalog = "anki_addons_catalog.__main__:main"
+
+[tool.hatch.version]
+path = "src/anki_addons_catalog/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anki_addons_catalog"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "anyio",
+    "ruff",
+    "mypy",
+    "bump-my-version",
+    "anki-addons-mcp",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.mypy]
+python_version = "3.13"
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["anki_addons_catalog.domain.*", "anki_addons_catalog.application.*"]
+strict = true

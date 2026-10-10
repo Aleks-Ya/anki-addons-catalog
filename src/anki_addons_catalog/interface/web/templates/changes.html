@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}What's new – Anki Addons Catalog{% endblock %}
+{% macro changes_table(rows, delta, unit) %}
+<table><thead><tr><th>Addon</th><th class="num">Change</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><a href="/addon/{{ r.id }}">{{ r.title }}</a></td>
+  <td class="num">{{ "%+d" | format(r[delta] or 0) }} {{ unit }}</td></tr>{% endfor %}
+</tbody></table>
+{% endmacro %}
+{% block content %}
+<h1>What's new</h1>
+<p>Changes between the snapshots of {{ diff.from_snapshot }} and {{ diff.to_snapshot }}:
+  {{ diff.added_count }} new, {{ diff.updated_count }} updated, {{ diff.removed_count }} removed
+  ({{ diff.addons_from }} → {{ diff.addons_to }} addons).</p>
+<section><h2>New addons</h2>{% with cards=diff.added %}{% include "_cards.html" %}{% endwith %}</section>
+<div class="grid">
+  <section><h2>Rising ratings</h2>{{ changes_table(diff.rating_movers, "rating_delta", "") }}</section>
+  <section><h2>Rising GitHub stars</h2>{{ changes_table(diff.star_movers, "stars_delta", "⭐") }}</section>
+</div>
+<section><h2>Recently updated</h2>
+  <ul>{% for r in diff.updated %}<li><a href="/addon/{{ r.id }}">{{ r.title }}</a> <small>{{ r.update_date_to or "" }}</small></li>{% endfor %}</ul>
+</section>
+{% if diff.removed %}<section><h2>Removed from AnkiWeb</h2>
+  <ul>{% for c in diff.removed %}<li>{{ c.title }} <small>({{ c.id }})</small></li>{% endfor %}</ul>
+</section>{% endif %}
+{% endblock %}

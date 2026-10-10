@@ -1,0 +1,156 @@
+import json
+from collections.abc import Iterator
+from typing import Any
+
+import pytest
+from fastapi.testclient import TestClient
+from mcp.server.mcpserver import MCPServer
+
+from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
+from anki_addons_catalog.bootstrap import create_app
+from anki_addons_catalog.config import Settings
+from anki_addons_catalog.domain.models import LlmTurn, ToolCall, Usage
+from anki_addons_catalog.interface.web.security import PASS_COOKIE
+from tests.conftest import FakeLlm
+from tests.fixtures import KANJI, OCCLUSION
+
+
+def settings(**overrides: Any) -> Settings:
+    return Settings(_env_file=None, mcp_keepalive_seconds=0, public_url="https://example.org",  # type: ignore[call-arg]
+                    **overrides)
+
+
+def scripted_llm() -> FakeLlm:
+    return FakeLlm([
+        LlmTurn(assistant_content=[], text="", stop_reason="tool_use", usage=Usage(input_tokens=10),
+                tool_calls=[ToolCall("t1", "search_addons", {"query": "kanji"})]),
+        LlmTurn(assistant_content=[], text=f"Try **[Kanji Helper](/addon/{KANJI})**.", tool_calls=[],
+                stop_reason="end_turn", usage=Usage(output_tokens=10)),
+    ])
+
+
+@pytest.fixture
+def make_client(server: MCPServer) -> Iterator[Any]:
+    clients: list[TestClient] = []
+
+    def make(llm: FakeLlm | None = None, **overrides: Any) -> TestClient:
+        catalog = McpCatalog(server, timeout_seconds=10)
+        client = TestClient(create_app(settings(**overrides), catalog=catalog, llm=llm or scripted_llm()))
+        client.__enter__()
+        clients.append(client)
+        return client
+
+    yield make
+    for client in clients:
+        client.__exit__(None, None, None)
+
+
+def sse_events(text: str) -> list[tuple[str, Any]]:
+    events = []
+    for chunk in text.strip().split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in chunk.splitlines())
+        events.append((lines["event"], json.loads(lines["data"])))
+    return events
+
+
+@pytest.mark.parametrize("path", ["/", "/search?q=kanji", f"/addon/{KANJI}", f"/addon/{OCCLUSION}?anki=25.02",
+                                  "/top/rating", "/top/recently_updated", "/author/alice", "/stats", "/changes",
+                                  "/about"])
+def test_pages_render(make_client: Any, path: str) -> None:
+    response = make_client().get(path)
+    assert response.status_code == 200, response.text
+    assert "Anki Addons Catalog" in response.text
+
+
+def test_index_lists_top_addons(make_client: Any) -> None:
+    assert f'href="/addon/{OCCLUSION}"' in make_client().get("/").text
+
+
+def test_addon_page_renders_readme_safely(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert "<h1>Kanji Helper</h1>" in html
+    assert "<script>alert(1)</script>" not in html
+    assert 'href="https://x.org" rel="nofollow noopener noreferrer" target="_blank"' in html
+
+
+def test_compatibility_verdict(make_client: Any) -> None:
+    assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
+
+
+def test_missing_addon_is_404(make_client: Any) -> None:
+    assert make_client().get("/addon/42").status_code == 404
+
+
+def test_unknown_top_metric_is_404(make_client: Any) -> None:
+    assert make_client().get("/top/nope").status_code == 404
+
+
+def test_history_json(make_client: Any) -> None:
+    assert len(make_client().get(f"/addon/{OCCLUSION}/history").json()["points"]) == 2
+
+
+def test_search_page_has_keyword_results_and_ai_section(make_client: Any) -> None:
+    html = make_client().get("/search?q=kanji").text
+    assert 'data-query="kanji"' in html
+    assert f'href="/addon/{KANJI}"' in html
+
+
+def test_sitemap_and_robots(make_client: Any) -> None:
+    client = make_client()
+    sitemap = client.get("/sitemap.xml").text
+    assert f"<loc>https://example.org/addon/{KANJI}</loc>" in sitemap
+    assert "Sitemap: https://example.org/sitemap.xml" in client.get("/robots.txt").text
+
+
+def test_healthz(make_client: Any) -> None:
+    assert make_client().get("/healthz").json()["status"] == "ok"
+
+
+def test_ask_streams_answer(make_client: Any) -> None:
+    response = make_client().get("/api/ask", params={"q": "kanji"})
+    assert response.headers["content-type"].startswith("text/event-stream")
+    events = sse_events(response.text)
+    names = [name for name, _ in events]
+    assert names[-3:] == ["answer", "addons", "done"]
+    answer_html = events[-3][1]["html"]
+    assert f'<strong><a href="/addon/{KANJI}">Kanji Helper</a></strong>' in answer_html
+    assert events[-2][1]["count"] == 1 and "Kanji Helper" in events[-2][1]["html"]
+
+
+def test_ask_validates_query(make_client: Any) -> None:
+    client = make_client(max_query_chars=10)
+    assert sse_events(client.get("/api/ask", params={"q": " "}).text)[0][0] == "error"
+    assert sse_events(client.get("/api/ask", params={"q": "x" * 11}).text)[0][0] == "error"
+
+
+def test_ask_rate_limited(make_client: Any) -> None:
+    client = make_client(rate_limit_per_hour=1)
+    client.get("/api/ask", params={"q": "kanji"})
+    events = sse_events(client.get("/api/ask", params={"q": "kanji"}).text)
+    assert events[0][0] == "error" and "many questions" in events[0][1]
+
+
+def test_ask_budget_exhausted(make_client: Any) -> None:
+    events = sse_events(make_client(daily_budget_usd=0).get("/api/ask", params={"q": "kanji"}).text)
+    assert events[0][0] == "error" and "budget" in events[0][1]
+
+
+def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s")
+    assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
+    assert 'data-site-key="site"' in client.get("/search?q=kanji").text
+
+    from anki_addons_catalog.interface.web import security
+
+    async def fake_verify(self: Any, token: str, ip: str) -> bool:
+        return token == "good"
+    monkeypatch.setattr(security.HumanCheck, "verify", fake_verify)
+
+    assert client.post("/api/verify", data={"token": "bad"}).status_code == 403
+    response = client.post("/api/verify", data={"token": "good"})
+    assert response.status_code == 200 and PASS_COOKIE in response.cookies
+    events = sse_events(client.get("/api/ask", params={"q": "kanji"}).text)
+    assert events[-1][0] == "done"
+
+    client.cookies.set(PASS_COOKIE, "9999999999.forged")
+    assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]

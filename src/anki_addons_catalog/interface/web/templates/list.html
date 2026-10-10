@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} – Anki Addons Catalog{% endblock %}
+{% block content %}
+<h1>{{ title }}</h1>
+{% if metric %}
+<nav class="tabs">
+  {% for key, label in top_metrics.items() %}<a href="/top/{{ key }}" {% if key == metric %}aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+{% endif %}
+<p>{{ subtitle }}</p>
+{% include "_cards.html" %}
+{% endblock %}

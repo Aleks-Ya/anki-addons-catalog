@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% set w = a.anki_web %}{% set gh = a.github %}{% set forum = a.forum %}
+{% block title %}{{ w.title }} – Anki addon {{ a.id }}{% endblock %}
+{% block description %}{{ (a.ai.summary if a.ai and a.ai.summary else w.title) | truncate(160) }}{% endblock %}
+{% block head %}<link rel="canonical" href="{{ public_url }}/addon/{{ a.id }}">{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>{{ w.title }}</h1>
+  <p>AnkiWeb addon <code>{{ a.id }}</code>
+    {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
+</hgroup>
+{% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
+<p class="actions">
+  <a role="button" href="{{ w.addon_page_url }}" target="_blank" rel="noopener">Open on AnkiWeb</a>
+  {% if gh and gh.url %}<a role="button" class="secondary" href="{{ gh.url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}
+  {% if forum and forum.anki_forum_url %}<a role="button" class="secondary" href="{{ forum.anki_forum_url }}" target="_blank" rel="noopener">Forum topic</a>{% endif %}
+  <a role="button" class="outline" href="/search?q={{ ('Addons similar to ' ~ w.title) | urlencode }}">Ask about alternatives</a>
+</p>
+
+<div class="grid facts">
+  <article>
+    <h3>AnkiWeb</h3>
+    <dl>
+      <dt>Rating</dt><dd>{{ w.rating }} (👍 {{ w.likes }} · 👎 {{ w.dislikes }})</dd>
+      <dt>Updated</dt><dd>{{ w.update_date or "unknown" }}</dd>
+      <dt>Anki versions</dt><dd>{{ w.anki_version or "unknown" }}</dd>
+      {% if w.description_language %}<dt>Description language</dt><dd>{{ w.description_language }}</dd>{% endif %}
+    </dl>
+  </article>
+  <article>
+    <h3>Maintenance</h3>
+    {% if maintenance %}
+      <p><mark class="label-{{ maintenance.label }}">{{ maintenance.label }}</mark></p>
+      <ul>{% for r in maintenance.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+    {% else %}<p>Unknown.</p>{% endif %}
+  </article>
+  <article>
+    <h3>GitHub</h3>
+    {% if gh and gh.user %}
+    <dl>
+      <dt>Repository</dt><dd><a href="{{ gh.url }}" target="_blank" rel="noopener">{{ gh.user }}/{{ gh.repo }}</a> · <a href="/author/{{ gh.user }}">more by {{ gh.user }}</a></dd>
+      <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.forks is not none %} · forks {{ gh.forks }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}</dd>
+      <dt>Last commit</dt><dd>{{ (gh.last_commit or "unknown")[:10] }}</dd>
+      {% if gh.license %}<dt>License</dt><dd>{{ gh.license }}</dd>{% endif %}
+      {% if gh.languages %}<dt>Languages</dt><dd>{{ gh.languages | join(", ") }}</dd>{% endif %}
+      {% if gh.tests_count is not none %}<dt>Tests</dt><dd>{{ gh.tests_count }}</dd>{% endif %}
+    </dl>
+    {% else %}<p>No GitHub repository linked.</p>{% endif %}
+  </article>
+</div>
+
+<section>
+  <h2>Will it work on my Anki?</h2>
+  <form method="get" class="compat" action="/addon/{{ a.id }}#compat">
+    <fieldset role="group">
+      <input name="anki" value="{{ anki }}" placeholder="Anki version, e.g. 25.02" aria-label="Anki version" required maxlength="20">
+      <button type="submit">Check</button>
+    </fieldset>
+  </form>
+  {% if compatibility %}
+  <p id="compat"><mark class="verdict-{{ compatibility.verdict }}">{{ compatibility.verdict }}</mark> {{ compatibility.explanation }}</p>
+  {% endif %}
+  {% if w.branches %}
+  <details><summary>Version branches</summary>
+    <table><thead><tr><th>Min Anki</th><th>Max Anki</th><th>Updated</th></tr></thead><tbody>
+    {% for b in w.branches %}<tr><td>{{ b.min_version or "–" }}</td><td>{{ b.max_version or "–" }}</td><td>{{ b.updated or "–" }}</td></tr>{% endfor %}
+    </tbody></table>
+  </details>
+  {% endif %}
+</section>
+
+<section>
+  <details id="history" data-url="/addon/{{ a.id }}/history"><summary>History across monthly snapshots</summary>
+    <p aria-busy="true">Loading…</p>
+  </details>
+</section>
+
+{% if similar %}
+<section>
+  <h2>Similar addons</h2>
+  {% with cards=similar | map(attribute="card") | list %}{% include "_cards.html" %}{% endwith %}
+</section>
+{% endif %}
+
+{% if readme %}
+<section>
+  <h2>README</h2>
+  <article class="readme">{{ readme | markdown | safe }}</article>
+</section>
+{% elif description %}
+<section>
+  <h2>Description</h2>
+  <article class="description">{{ description }}</article>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='addon.js') }}?v={{ version }}" defer></script>{% endblock %}
