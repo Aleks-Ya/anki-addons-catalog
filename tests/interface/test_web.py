@@ -85,7 +85,7 @@ def test_addon_page_resolves_relative_readme_links_against_github(make_client: A
 
 def test_about_shows_dataset_date(make_client: Any) -> None:
     text = make_client().get("/about").text
-    assert "created on <b>2026-09-03</b>" in text
+    assert "created on <b>3 Sep 2026</b>" in text
 
 
 def test_about_shows_contacts(make_client: Any) -> None:
