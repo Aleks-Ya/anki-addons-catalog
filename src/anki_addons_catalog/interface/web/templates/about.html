@@ -12,6 +12,10 @@ are still maintained, and recommends the best fits.</p>
   <li>The <a href="https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp">Anki Addons MCP server</a> gives the AI read-only access to the dataset.
     You can connect it to your own AI assistant, too.</li>
 </ul>
+{% if snapshot %}
+<p>Current dataset: the snapshot of <b>{{ snapshot.date }}</b>{% if snapshot.report_generation_date %}, created
+  {{ snapshot.report_generation_date[:10] }}{% endif %}.</p>
+{% endif %}
 <h2>Caveats</h2>
 <ul>
   <li>Data is refreshed monthly, so the newest updates may be missing.</li>

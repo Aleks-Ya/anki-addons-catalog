@@ -89,9 +89,12 @@ class CatalogService:
         snapshots: list[dict[str, Any]] = await self.call("list_snapshots")
         return snapshots
 
+    async def latest_snapshot_info(self) -> dict[str, Any] | None:
+        return next((s for s in await self.snapshots() if s.get("latest")), None)
+
     async def latest_snapshot(self) -> str | None:
-        latest = [s["date"] for s in await self.snapshots() if s.get("latest")]
-        return latest[0] if latest else None
+        info = await self.latest_snapshot_info()
+        return info["date"] if info else None
 
     async def all_addon_ids(self) -> list[int]:
         """Every addon id of the latest snapshot, for the sitemap."""

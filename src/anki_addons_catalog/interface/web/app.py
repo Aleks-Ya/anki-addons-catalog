@@ -202,7 +202,11 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     @app.get("/about", response_class=HTMLResponse)
     async def about(request: Request) -> HTMLResponse:
-        return page(request, "about.html")
+        try:
+            snapshot = await ctx.catalog.latest_snapshot_info()
+        except (CatalogUnavailable, ToolFailed):
+            snapshot = None
+        return page(request, "about.html", snapshot=snapshot)
 
     @app.get("/robots.txt", response_class=PlainTextResponse)
     async def robots() -> str:

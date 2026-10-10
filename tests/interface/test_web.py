@@ -80,6 +80,12 @@ def test_addon_page_resolves_relative_readme_links_against_github(make_client: A
     assert 'href="#usage"' in html
 
 
+def test_about_shows_dataset_date(make_client: Any) -> None:
+    text = make_client().get("/about").text
+    assert "snapshot of <b>2026-09-01</b>" in text
+    assert "created\n  2026-09-03." in text
+
+
 def test_compatibility_verdict(make_client: Any) -> None:
     assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
 

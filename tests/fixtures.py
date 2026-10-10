@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 from anki_addons_mcp.adapters.memory.repository import InMemoryAddonRepository
@@ -12,6 +12,7 @@ OCCLUSION = 1002
 HEATMAP = 1003
 OLD = date(2026, 8, 1)
 LATEST = date(2026, 9, 1)
+LATEST_CREATED = datetime(2026, 9, 3, 4, 5, tzinfo=UTC)
 
 
 def _addon(addon_id: int, title: str, *, rating: int, update_date: str, anki_version: str, summary: str,
@@ -51,5 +52,6 @@ def latest_addons() -> list[AddonDetails]:
 
 def mcp_server() -> MCPServer:
     snapshots = {OLD: latest_addons()[1:], LATEST: latest_addons()}
-    infos = {d: SnapshotInfo(date=d, latest=d == LATEST) for d in snapshots}
+    infos = {d: SnapshotInfo(date=d, latest=d == LATEST, report_generation_date=LATEST_CREATED if d == LATEST else None)
+             for d in snapshots}
     return build_server(build_services(InMemoryAddonRepository(snapshots, infos)))
