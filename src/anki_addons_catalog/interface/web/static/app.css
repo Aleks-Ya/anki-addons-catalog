@@ -1,5 +1,8 @@
 :root { --cards-min: 18rem; }
 .brand { display: inline-flex; align-items: center; gap: .5rem; text-decoration: none; }
+.beta { margin-left: .5rem; padding: .1rem .45rem; border: 1px solid var(--pico-primary); border-radius: .3rem;
+        color: var(--pico-primary); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+        vertical-align: middle; }
 .hero { text-align: center; padding: 2rem 0 1rem; }
 .hero p { max-width: 42rem; margin-inline: auto; }
 .searchbox { display: flex; gap: .5rem; max-width: 46rem; margin: 1rem auto; }

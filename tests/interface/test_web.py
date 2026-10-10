@@ -60,6 +60,7 @@ def test_pages_render(make_client: Any, path: str) -> None:
     response = make_client().get(path)
     assert response.status_code == 200, response.text
     assert "Anki Addons Catalog" in response.text
+    assert '<span class="beta"' in response.text
 
 
 def test_index_lists_top_addons(make_client: Any) -> None:
