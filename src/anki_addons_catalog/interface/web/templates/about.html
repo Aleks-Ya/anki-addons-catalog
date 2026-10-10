@@ -13,8 +13,7 @@ are still maintained, and recommends the best fits.</p>
     You can connect it to your own AI assistant, too.</li>
 </ul>
 {% if snapshot %}
-<p>Current dataset: the snapshot of <b>{{ snapshot.date }}</b>{% if snapshot.report_generation_date %}, created
-  {{ snapshot.report_generation_date[:10] }}{% endif %}.</p>
+<p>The current dataset was created on <b>{{ (snapshot.report_generation_date or snapshot.date)[:10] }}</b>.</p>
 {% endif %}
 <h2>Caveats</h2>
 <ul>
