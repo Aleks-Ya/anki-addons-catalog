@@ -6,6 +6,7 @@
       {% if c.github_archived %}<mark>archived</mark>{% endif %}
     </header>
     {% if c.ai_summary %}<p class="summary" title="AI-generated summary; may contain mistakes">{{ c.ai_summary }}</p>{% endif %}
+    {% if c.ai_tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in c.ai_tags %}<span class="tag">{{ t }}</span>{% endfor %}</p>{% endif %}
     <footer class="meta">
       <span title="AnkiWeb rating">Rating {{ c.rating }}</span>
       <span title="Likes / dislikes">👍 {{ c.likes | compact }} · 👎 {{ c.dislikes | compact }}</span>

@@ -177,6 +177,15 @@ def test_extract_cards_from_tool_results() -> None:
     assert cards[3].title == "C"
 
 
+def test_extract_cards_keeps_ai_tags() -> None:
+    cards: dict[int, AddonCard] = {}
+    page = {"items": [{"id": 1, "title": "A", "url": "u", "ai_tags": ["statistics"]}], "total": 1}
+    details = {"id": 2, "anki_web": {"title": "B", "addon_page_url": "u"}, "ai": {"tags": ["cloze", "beta"]}}
+    extract_cards([page, details], cards)
+    assert cards[1].ai_tags == ["statistics"]
+    assert cards[2].ai_tags == ["cloze", "beta"]
+
+
 def test_referenced_ids_in_order_without_duplicates() -> None:
     text = f"[B](/addon/{OCCLUSION}) and [A](https://ankiweb.net/shared/info/{KANJI}) and [B](/addon/{OCCLUSION})"
     assert referenced_ids(text) == [OCCLUSION, KANJI]

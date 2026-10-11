@@ -16,6 +16,7 @@ class AddonCard(BaseModel):
     update_date: str | None = None
     anki_version: str | None = None
     ai_summary: str | None = None
+    ai_tags: list[str] = []
     github_user: str | None = None
     github_repo: str | None = None
     github_stars: int | None = None
@@ -32,7 +33,7 @@ class AddonCard(BaseModel):
             id=details["id"], title=anki_web["title"], url=anki_web["addon_page_url"],
             rating=anki_web.get("rating", 0), likes=anki_web.get("likes", 0), dislikes=anki_web.get("dislikes", 0),
             update_date=anki_web.get("update_date"), anki_version=anki_web.get("anki_version"),
-            ai_summary=ai.get("summary"), github_user=github.get("user"), github_repo=github.get("repo"),
+            ai_summary=ai.get("summary"), ai_tags=ai.get("tags") or [], github_user=github.get("user"), github_repo=github.get("repo"),
             github_stars=github.get("stars"), github_archived=github.get("archived"), license=github.get("license"),
         )
 
