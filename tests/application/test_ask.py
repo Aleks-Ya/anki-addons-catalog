@@ -15,6 +15,7 @@ from anki_addons_catalog.application.ask import (
 )
 from anki_addons_catalog.application.limits import DailyBudget, Pricing
 from anki_addons_catalog.application.usage import UsageStats
+from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, Usage
 from tests.conftest import FakeLlm
 from tests.fixtures import KANJI, OCCLUSION
@@ -46,6 +47,14 @@ def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_roun
 
 async def collect(ask: AskService, query: str) -> list[AnswerEvent]:
     return [event async for event in ask.ask(query)]
+
+
+async def test_offers_every_configured_tool_including_list_tags(catalog: McpCatalog) -> None:
+    configured = Settings.model_fields["ai_tools"].default
+    ask = AskService(catalog, FakeLlm([]), DailyBudget(1.0, PRICING), allowed_tools=configured)
+    names = [t.name for t in await ask.tools()]
+    assert sorted(names) == sorted(configured)
+    assert "list_tags" in names
 
 
 async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import quote
 from xml.sax.saxutils import escape
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -19,7 +20,7 @@ from fastapi.templating import Jinja2Templates
 from anki_addons_catalog import __version__
 from anki_addons_catalog.application import usage as u
 from anki_addons_catalog.application.ask import AskService, BudgetExhausted
-from anki_addons_catalog.application.catalog import TOP_METRICS, CatalogService
+from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, CatalogService
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
@@ -42,6 +43,7 @@ EXAMPLES = [
 
 
 QUESTIONS_PAGE = 50
+TAG_PAGE = 30
 
 
 @dataclass
@@ -255,6 +257,24 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         return await page(request, "list.html", title=TOP_METRICS[metric], subtitle="Top 50 addons.",
                     cards=result["items"], metric=metric)
 
+    @app.get("/tags", response_class=HTMLResponse)
+    async def tags(request: Request) -> HTMLResponse:
+        view("tags")
+        all_tags = await ctx.catalog.tags()
+        return await page(request, "tags.html", function_tags=[t for t in all_tags if t["group"] == "function"],
+                          status_tags=[t for t in all_tags if t["group"] != "function"])
+
+    @app.get("/tag/{name}", response_class=HTMLResponse)
+    async def tag(request: Request, name: str, offset: int = 0) -> HTMLResponse:
+        tag = await ctx.catalog.tag(name.strip().lower())
+        if tag is None:
+            return await page(request, "error.html", 404, title="Not found", message=f"Unknown category: {name}")
+        view("tag")
+        offset = max(offset, 0)
+        results = await ctx.catalog.by_tag(tag["name"], limit=TAG_PAGE, offset=offset)
+        return await page(request, "tag.html", tag=tag, results=results, offset=offset, page_size=TAG_PAGE,
+                          obsolete_hidden=tag["name"] != OBSOLETE_TAG)
+
     @app.get("/stats", response_class=HTMLResponse)
     async def stats(request: Request) -> HTMLResponse:
         view("stats")
@@ -306,7 +326,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     @app.get("/sitemap.xml")
     async def sitemap() -> Response:
-        paths = ["/", "/stats", "/changes", "/about", *(f"/top/{m}" for m in TOP_METRICS)]
+        paths = ["/", "/stats", "/changes", "/about", "/tags", *(f"/top/{m}" for m in TOP_METRICS)]
+        paths += [f"/tag/{quote(t['name'])}" for t in await ctx.catalog.tags()]
         paths += [f"/addon/{i}" for i in await ctx.catalog.all_addon_ids()]
         urls = "".join(f"<url><loc>{escape(ctx.public_url + p)}</loc></url>" for p in paths)
         xml = ('<?xml version="1.0" encoding="UTF-8"?>'

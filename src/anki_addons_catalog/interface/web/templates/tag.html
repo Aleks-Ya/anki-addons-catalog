@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ tag.name }} – Anki addon category{% endblock %}
+{% block description %}Anki addons tagged {{ tag.name }}{% if tag.description %}: {{ tag.description }}{% endif %}{% endblock %}
+{% block head %}<link rel="canonical" href="{{ public_url }}/tag/{{ tag.name | urlencode }}">{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>{{ tag.name }}</h1>
+  <p>{% if tag.description %}{{ tag.description }}. {% endif %}<a href="/tags">All categories</a></p>
+</hgroup>
+<p><small>{{ results.total }} addons, best rated first{% if obsolete_hidden %}; obsolete addons are hidden{% endif %}.
+  Tags are AI-generated and may contain mistakes.</small></p>
+{% with cards=results["items"] %}{% include "_cards.html" %}{% endwith %}
+<nav class="pager">
+  {% if offset > 0 %}<a href="/tag/{{ tag.name | urlencode }}?offset={{ [offset - page_size, 0] | max }}">← Previous</a>{% endif %}
+  {% if offset + page_size < results.total %}<a href="/tag/{{ tag.name | urlencode }}?offset={{ offset + page_size }}">Next →</a>{% endif %}
+</nav>
+{% endblock %}

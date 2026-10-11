@@ -13,7 +13,7 @@
 <div class="groups">
 {% for g in stats.groups %}
   <article>
-    <h3>{{ g.field | replace("_", " ") | capitalize }} <small>({{ g.distinct_values }} distinct)</small></h3>
+    <h3>{{ "AI tag" if g.field == "ai_tag" else g.field | replace("_", " ") | capitalize }} <small>({{ g.distinct_values }} distinct)</small></h3>
     {% set total = g.counts.values() | sum %}
     <table class="bars"><tbody>
     {% for value, count in g.counts.items() %}
@@ -21,6 +21,7 @@
         <td class="bar"><span style="width: {{ (100 * count / total) | round(1) if total else 0 }}%"></span></td></tr>
     {% endfor %}
     </tbody></table>
+    {% if g.field == "ai_tag" %}<p><small><a href="/tags">All categories →</a></small></p>{% endif %}
   </article>
 {% endfor %}
 </div>

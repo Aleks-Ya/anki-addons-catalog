@@ -10,7 +10,7 @@
     {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
 </hgroup>
 {% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
-{% if a.ai and a.ai.tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in a.ai.tags %}<span class="tag">{{ t }}</span>{% endfor %}</p>{% endif %}
+{% if a.ai and a.ai.tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in a.ai.tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}
 <p class="actions">
   <a role="button" href="{{ w.addon_page_url }}" target="_blank" rel="noopener">Open on AnkiWeb</a>
   {% if gh and gh.url %}<a role="button" class="secondary" href="{{ gh.url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}

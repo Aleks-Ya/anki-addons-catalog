@@ -46,7 +46,7 @@ dev = [
     "ruff",
     "mypy",
     "bump-my-version",
-    "anki-addons-mcp",
+    "anki-addons-mcp>=0.3.0",
 ]
 
 [tool.pytest.ini_options]

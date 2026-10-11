@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Addon categories – Anki Addons Catalog{% endblock %}
+{% block description %}Browse Anki addons by category: what they do and their status.{% endblock %}
+{% block head %}<link rel="canonical" href="{{ public_url }}/tags">{% endblock %}
+{% block content %}
+<h1>Addon categories</h1>
+<p>Every addon is tagged by what it does and by its status. <small>Tags are AI-generated and may contain mistakes.</small></p>
+{% for heading, group in [("What addons do", function_tags), ("Status", status_tags)] %}
+<section>
+  <h2>{{ heading }}</h2>
+  <ul class="taglist">
+  {% for t in group %}
+    <li><a class="tag" href="/tag/{{ t.name | urlencode }}">{{ t.name }}</a> <small class="count">{{ t.addon_count }}</small>
+      {% if t.description %}<small>{{ t.description }}</small>{% endif %}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}

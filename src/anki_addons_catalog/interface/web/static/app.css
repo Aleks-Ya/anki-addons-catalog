@@ -25,7 +25,11 @@ h2 small, h3 small { font-size: .8rem; font-weight: normal; }
 .cards .card header { margin-bottom: .5rem; }
 .cards .card .summary { flex: 1; font-size: .9rem; }
 .tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .5rem; }
-.tag { font-size: .75rem; padding: .05rem .5rem; border-radius: 1rem; border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color); }
+.tag { font-size: .75rem; padding: .05rem .5rem; border-radius: 1rem; border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color); text-decoration: none; }
+a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
+.taglist { list-style: none; padding: 0; columns: 2 20rem; }
+.taglist li { list-style: none; break-inside: avoid; margin-bottom: .5rem; }
+.taglist .count { color: var(--pico-muted-color); }
 .cards .card footer.meta { margin-top: .5rem; font-size: .8rem; display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
 
 .ai { border-left: 4px solid var(--pico-primary); padding-left: 1rem; margin-bottom: 2rem; }

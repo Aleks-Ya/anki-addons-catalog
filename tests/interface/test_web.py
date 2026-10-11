@@ -12,7 +12,7 @@ from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.models import LlmTurn, ToolCall, Usage
 from anki_addons_catalog.interface.web.security import PASS_COOKIE
 from tests.conftest import FakeLlm
-from tests.fixtures import KANJI, OCCLUSION
+from tests.fixtures import HEATMAP, KANJI, OCCLUSION
 
 
 def settings(**overrides: Any) -> Settings:
@@ -56,7 +56,7 @@ def sse_events(text: str) -> list[tuple[str, Any]]:
 
 @pytest.mark.parametrize("path", ["/", "/search?q=kanji", f"/addon/{KANJI}", f"/addon/{OCCLUSION}?anki=25.02",
                                   "/top/rating", "/top/recently_updated", "/author/alice", "/stats", "/changes",
-                                  "/about"])
+                                  "/about", "/tags", "/tag/dictionary", "/tag/obsolete"])
 def test_pages_render(make_client: Any, path: str) -> None:
     response = make_client().get(path)
     assert response.status_code == 200, response.text
@@ -128,10 +128,44 @@ def test_search_page_has_keyword_results_and_ai_section(make_client: Any) -> Non
     assert f'href="/addon/{KANJI}"' in html
 
 
+def test_tags_page_lists_categories(make_client: Any) -> None:
+    html = make_client().get("/tags").text
+    assert 'href="/tag/dictionary"' in html
+    assert 'href="/tag/paid"' in html
+    assert "Lookup, definitions, translation" in html
+
+
+def test_tag_page_lists_addons_and_hides_obsolete_ones(make_client: Any) -> None:
+    client = make_client()
+    assert f'href="/addon/{KANJI}"' in client.get("/tag/dictionary").text
+    statistics = client.get("/tag/statistics").text
+    assert f'href="/addon/{HEATMAP}"' not in statistics
+    assert "obsolete addons are hidden" in statistics
+    assert f'href="/addon/{HEATMAP}"' in client.get("/tag/obsolete").text
+
+
+def test_unknown_tag_is_404(make_client: Any) -> None:
+    assert make_client().get("/tag/nope").status_code == 404
+
+
+def test_cards_and_addon_page_link_tags(make_client: Any) -> None:
+    client = make_client()
+    assert 'href="/tag/image-occlusion"' in client.get("/").text
+    assert 'href="/tag/dictionary"' in client.get(f"/addon/{KANJI}").text
+
+
+def test_stats_has_ai_tags(make_client: Any) -> None:
+    html = make_client().get("/stats").text
+    assert "AI tag" in html
+    assert 'href="/tags"' in html
+
+
 def test_sitemap_and_robots(make_client: Any) -> None:
     client = make_client()
     sitemap = client.get("/sitemap.xml").text
     assert f"<loc>https://example.org/addon/{KANJI}</loc>" in sitemap
+    assert "<loc>https://example.org/tags</loc>" in sitemap
+    assert "<loc>https://example.org/tag/dictionary</loc>" in sitemap
     robots = client.get("/robots.txt").text
     assert "Sitemap: https://example.org/sitemap.xml" in robots
     assert "Disallow: /admin/" in robots

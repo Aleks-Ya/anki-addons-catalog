@@ -9,7 +9,8 @@ TOP_METRICS = {
     "rating": "Highest rated", "likes": "Most liked", "stars": "Most GitHub stars",
     "forum_posts": "Most discussed on the Anki Forum", "recently_updated": "Recently updated",
 }
-STAT_GROUPS = ["license", "primary_language", "description_language", "anki_version", "update_year"]
+STAT_GROUPS = ["license", "primary_language", "description_language", "anki_version", "update_year", "ai_tag"]
+OBSOLETE_TAG = "obsolete"
 
 
 class CatalogService:
@@ -80,6 +81,21 @@ class CatalogService:
     async def statistics(self) -> dict[str, Any]:
         stats: dict[str, Any] = await self.call("get_statistics", group_by=STAT_GROUPS, top_values=15)
         return stats
+
+    async def tags(self) -> list[dict[str, Any]]:
+        tags: list[dict[str, Any]] = await self.call("list_tags")
+        return tags
+
+    async def tag(self, name: str) -> dict[str, Any] | None:
+        return next((t for t in await self.tags() if t["name"] == name), None)
+
+    async def by_tag(self, name: str, limit: int = 30, offset: int = 0) -> dict[str, Any]:
+        """Addons with an AI tag, best rated first; obsolete addons are hidden unless the tag itself is obsolete."""
+        args: dict[str, Any] = {"tags": [name], "sort_by": "rating", "limit": limit, "offset": offset}
+        if name != OBSOLETE_TAG:
+            args["exclude_tags"] = [OBSOLETE_TAG]
+        page: dict[str, Any] = await self.call("filter_addons", **args)
+        return page
 
     async def changes(self, limit: int = 30) -> dict[str, Any]:
         diff: dict[str, Any] = await self.call("diff_snapshots", limit=limit)
