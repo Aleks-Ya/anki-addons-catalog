@@ -73,7 +73,7 @@ async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:
     assert [c["id"] for c in cards] == [KANJI]
 
     assert {t.name for t in llm.tools} == set(TOOLS)
-    assert llm.requests[0][0]["content"] == "(Dataset snapshot: 2026-09-01.)\n\nkanji for 25.02"
+    assert llm.requests[0][0]["content"] == "(Dataset snapshot: 2026-09-01.)\n\nSearch query: kanji for 25.02"
     results = llm.requests[1][-1]["content"]
     assert [r["tool_use_id"] for r in results] == ["t1", "t2"]
     assert all(not r["is_error"] for r in results)
