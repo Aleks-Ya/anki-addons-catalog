@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Find the right Anki addon</h1>
+  <p>Ask in plain words. Claude searches every addon on AnkiWeb and checks ratings, Anki compatibility and maintenance for you.</p>
+  {% include "_searchbox.html" %}
+  <p class="examples">Try:
+    {% for e in examples %}<a href="/search?q={{ e | urlencode }}">{{ e }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+</section>
+<section>
+  <h2>Highest rated <small><a href="/top/rating">see all</a></small></h2>
+  {% with cards=top %}{% include "_cards.html" %}{% endwith %}
+</section>
+<section>
+  <h2>Recently updated <small><a href="/top/recently_updated">see all</a></small></h2>
+  {% with cards=recent %}{% include "_cards.html" %}{% endwith %}
+</section>
+{% endblock %}

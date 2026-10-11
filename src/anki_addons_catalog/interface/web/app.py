@@ -12,14 +12,7 @@ from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import (
-    HTMLResponse,
-    JSONResponse,
-    PlainTextResponse,
-    RedirectResponse,
-    Response,
-    StreamingResponse,
-)
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -80,11 +73,11 @@ def _sse(event: str, data: Any) -> str:
 
 
 def search_url(q: str = "", filters: SearchFilters | None = None, offset: int = 0) -> str:
-    """A question URL (/search), or the filtered catalog on the home page without a question."""
+    """A /search URL with the query, the filters and the page offset."""
     params = ([("q", q)] if q else []) + (filters or SearchFilters()).params(sort=not q)
     if offset > 0:
         params.append(("offset", str(offset)))
-    return ("/search" if q else "/") + ("?" + urlencode(params) if params else "")
+    return "/search" + ("?" + urlencode(params) if params else "")
 
 
 def _usage_row(c: dict[str, float]) -> dict[str, float]:
@@ -179,10 +172,21 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def healthz() -> JSONResponse:
         return JSONResponse({"status": "ok", "version": __version__})
 
-    async def catalog_page(request: Request, q: str, offset: int) -> HTMLResponse:
-        """The filtered catalog: every addon without a question, else keyword matches below the AI answer."""
+    @app.get("/", response_class=HTMLResponse)
+    async def index(request: Request) -> HTMLResponse:
+        view("home")
+        top, recent = await asyncio.gather(ctx.catalog.top("rating", 8), ctx.catalog.top("recently_updated", 8))
+        return await page(request, "index.html", examples=EXAMPLES, top=top["items"], recent=recent["items"])
+
+    @app.get("/search", response_class=HTMLResponse)
+    async def search(request: Request, q: str = "", offset: int = 0) -> HTMLResponse:
+        """Keyword search plus the AI answer, or browsing the whole catalog without a query; both filtered."""
+        q = q.strip()[:ctx.max_query_chars]
         offset = max(offset, 0)
         filters = await search_filters(request)
+        view("search")
+        if q:
+            ctx.usage.add(u.KEYWORD_SEARCH)
         results, all_tags = await asyncio.gather(
             ctx.catalog.search(q, filters, limit=SEARCH_PAGE, offset=offset) if q
             else ctx.catalog.browse(filters, limit=SEARCH_PAGE, offset=offset),
@@ -190,21 +194,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         function_tags = sorted((t for t in all_tags if t["group"] == "function"),
                                key=lambda t: (t["name"] not in filters.tags, -t.get("addon_count", 0), t["name"]))
         return await page(request, "search.html", q=q, results=results, offset=offset, page_size=SEARCH_PAGE,
-                          filters=filters, function_tags=function_tags, examples=EXAMPLES)
-
-    @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request, offset: int = 0) -> HTMLResponse:
-        view("home")
-        return await catalog_page(request, "", offset)
-
-    @app.get("/search", response_class=HTMLResponse)
-    async def search(request: Request, q: str = "", offset: int = 0) -> Response:
-        q = q.strip()[:ctx.max_query_chars]
-        if not q:
-            return RedirectResponse(search_url("", SearchFilters.parse(request.query_params), offset))
-        view("search")
-        ctx.usage.add(u.KEYWORD_SEARCH)
-        return await catalog_page(request, q, offset)
+                          filters=filters, function_tags=function_tags)
 
     @app.post("/api/verify")
     async def verify(request: Request, token: str = Form("")) -> Response:

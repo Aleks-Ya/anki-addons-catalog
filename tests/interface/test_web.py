@@ -140,25 +140,18 @@ def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> No
     assert f'href="/addon/{KANJI}"' not in client.get("/search", params={"q": "kanji", "anki": "2.1.50"}).text
 
 
-def test_home_page_browses_the_filtered_catalog(make_client: Any) -> None:
+def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
     client = make_client()
-    html = client.get("/").text
+    html = client.get("/search").text
     assert "All addons <small>(2)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
-    assert '<form id="filters" action="/" method="get">' in html
-    assert f'href="/addon/{HEATMAP}"' in client.get("/", params={"obsolete": "1", "tag": "statistics"}).text
+    assert f'href="/addon/{HEATMAP}"' in client.get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
-
-
-def test_search_without_question_redirects_home(make_client: Any) -> None:
-    response = make_client().get("/search", params={"q": " ", "tag": "statistics", "sort": "likes"},
-                                 follow_redirects=False)
-    assert response.status_code == 307 and response.headers["location"] == "/?tag=statistics&sort=likes"
 
 
 def test_search_url_keeps_filters() -> None:
     assert search_url("a b", SearchFilters(tags=["cloze"], sort="likes"), 30) == "/search?q=a+b&tag=cloze&offset=30"
-    assert search_url("", SearchFilters(sort="likes")) == "/?sort=likes"
-    assert search_url() == "/"
+    assert search_url("", SearchFilters(sort="likes")) == "/search?sort=likes"
+    assert search_url() == "/search"
 
 
 def test_ask_applies_filters(make_client: Any) -> None:
@@ -182,7 +175,7 @@ def test_tag_page_lists_addons_and_hides_obsolete_ones(make_client: Any) -> None
     assert f'href="/addon/{HEATMAP}"' not in statistics
     assert "obsolete addons are hidden" in statistics
     assert f'href="/addon/{HEATMAP}"' in client.get("/tag/obsolete").text
-    assert 'href="/?tag=statistics"' in statistics
+    assert 'href="/search?tag=statistics"' in statistics
 
 
 def test_unknown_tag_is_404(make_client: Any) -> None:
@@ -294,8 +287,7 @@ def test_admin_usage_counts_searches_and_views(make_client: Any) -> None:
     assert '<small>Keyword searches</small><p class="kpi">1</p>' in html
     assert '<small>AI questions</small><p class="kpi">1</p>' in html
     assert '<small>Page views</small><p class="kpi">3</p>' in html
-    assert '<tr><td>search</td><td class="num">1</td></tr>' in html  # /search without a question redirects home
-    assert '<tr><td>home</td><td class="num">1</td></tr>' in html
+    assert '<tr><td>search</td><td class="num">2</td></tr>' in html
     assert '<meta name="robots" content="noindex">' in html
 
 
