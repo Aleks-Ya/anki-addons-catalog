@@ -6,7 +6,7 @@
 <hgroup>
   <h1>{{ tag.name }}</h1>
   <p>{% if tag.description %}{{ tag.description }}. {% endif %}<a href="/tags">All categories</a> ·
-    <a href="/search?tag={{ tag.name | urlencode }}{% if not obsolete_hidden %}&amp;obsolete=1{% endif %}">Refine with filters</a></p>
+    <a href="/?tag={{ tag.name | urlencode }}{% if not obsolete_hidden %}&amp;obsolete=1{% endif %}">Refine with filters</a></p>
 </hgroup>
 <p><small>{{ results.total }} addons, best rated first{% if obsolete_hidden %}; obsolete addons are hidden{% endif %}.
   Tags are AI-generated and may contain mistakes.</small></p>

@@ -1,11 +1,23 @@
 {% extends "base.html" %}
-{% block title %}{{ q or "Browse addons" }} – Anki Addons Catalog{% endblock %}
+{% block title %}{% if q %}{{ q }} – Anki Addons Catalog{% else %}Anki Addons Catalog – find the right Anki addon{% endif %}{% endblock %}
 {% block head %}
-<meta name="robots" content="noindex">
+{% if q %}<meta name="robots" content="noindex">{% else %}<link rel="canonical" href="{{ public_url }}/">{% endif %}
 {% if turnstile_site_key and q %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>{% endif %}
 {% endblock %}
 {% block content %}
+{% if q %}
 {% include "_searchbox.html" %}
+{% else %}
+<section class="hero">
+  <h1>Find the right Anki addon</h1>
+  <p>Filter all AnkiWeb addons below, or ask in plain words: Claude searches every addon and checks ratings,
+    Anki compatibility and maintenance for you.</p>
+  {% include "_searchbox.html" %}
+  <p class="examples">Try:
+    {% for e in examples %}<a href="{{ search_url(e, filters) }}">{{ e }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+</section>
+{% endif %}
 <div class="search-layout">
 {% include "_filters.html" %}
 <div class="search-results">

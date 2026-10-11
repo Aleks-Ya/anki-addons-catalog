@@ -1,6 +1,6 @@
 <details class="filters" open>
   <summary>Filters{% if filters.chips() %} ({{ filters.chips() | length }} active){% endif %}</summary>
-  <form id="filters" action="/search" method="get">
+  <form id="filters" action="{{ '/search' if q else '/' }}" method="get">
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     <label for="f-anki">Your Anki version
       <input id="f-anki" type="text" name="anki" value="{{ filters.anki or '' }}" placeholder="e.g. 25.09"
