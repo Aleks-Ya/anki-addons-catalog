@@ -48,7 +48,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anki-addons-mcp", specifier = ">=0.3.0" },
+    { name = "anki-addons-mcp", git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=73191fd12f08c3cc964e40bc9c7df1774d87e0e3" },
     { name = "anyio" },
     { name = "bump-my-version" },
     { name = "mypy" },
@@ -59,8 +59,8 @@ dev = [
 
 [[package]]
 name = "anki-addons-mcp"
-version = "0.3.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.4.0.dev0"
+source = { git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=73191fd12f08c3cc964e40bc9c7df1774d87e0e3#73191fd12f08c3cc964e40bc9c7df1774d87e0e3" }
 dependencies = [
     { name = "duckdb" },
     { name = "huggingface-hub" },
@@ -68,10 +68,6 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "uvicorn" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/29/7c6a1d54dfa59f1e72d8edc548fe36a34ad0db1d86fab53687ac7935dc5c/anki_addons_mcp-0.3.0.tar.gz", hash = "sha256:dfc3a4808533d6ee4254a293bc6072ef9de6a4fcef1214cc1d244f74983049d2", size = 51152, upload-time = "2026-10-11T11:22:24.958Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/9f/5772fe42cc780782af959d31b84b153ade1e02b1e36710f376f84849a54c/anki_addons_mcp-0.3.0-py3-none-any.whl", hash = "sha256:68628e66801e1e8c89b6de45f90d647b83f84732e85d3686ce192d35ffe2bf8e", size = 51392, upload-time = "2026-10-11T11:22:23.712Z" },
 ]
 
 [[package]]

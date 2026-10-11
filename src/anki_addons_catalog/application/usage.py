@@ -28,8 +28,9 @@ MEMORY = ":memory:"
 
 _QUESTION_COLUMNS = ("asked_at", "query", "snapshot", "outcome", "rounds", "input_tokens", "output_tokens",
                      "cache_read_tokens", "cache_write_tokens", "cost_usd", "duration_ms", "answer", "addon_ids",
-                     "trace", "error", "model")
+                     "trace", "error", "model", "filters")
 _JSON_COLUMNS = ("addon_ids", "trace")
+_ADDED_COLUMNS = ("model", "filters")  # absent in backups from before the column
 
 
 def utc_now() -> datetime:
@@ -57,6 +58,7 @@ class QuestionRecord:
     trace: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
     model: str | None = None
+    filters: str | None = None  # the visitor's search filters as a URL query string
 
 
 class UsageStats:
@@ -86,10 +88,12 @@ class UsageStats:
                          "query TEXT NOT NULL, snapshot TEXT, outcome TEXT NOT NULL, rounds INTEGER, "
                          "input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, "
                          "cache_write_tokens INTEGER, cost_usd REAL, duration_ms INTEGER, answer TEXT, "
-                         "addon_ids TEXT, trace TEXT, error TEXT, model TEXT)")
+                         "addon_ids TEXT, trace TEXT, error TEXT, model TEXT, filters TEXT)")
         self._db.execute("CREATE INDEX IF NOT EXISTS questions_asked_at ON questions (asked_at)")
-        if "model" not in {row[1] for row in self._db.execute("PRAGMA table_info(questions)")}:
-            self._db.execute("ALTER TABLE questions ADD COLUMN model TEXT")  # a backup from before the column
+        existing = {row[1] for row in self._db.execute("PRAGMA table_info(questions)")}
+        for column in _ADDED_COLUMNS:
+            if column not in existing:
+                self._db.execute(f"ALTER TABLE questions ADD COLUMN {column} TEXT")
         self._saved_changes = self._db.total_changes
         self._save_lock = threading.Lock()
 

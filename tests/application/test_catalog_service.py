@@ -5,7 +5,7 @@ import pytest
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.catalog import CatalogService
 from anki_addons_catalog.domain.errors import ToolFailed
-from anki_addons_catalog.domain.models import ToolResult
+from anki_addons_catalog.domain.models import SearchFilters, ToolResult
 from tests.fixtures import HEATMAP, KANJI, OCCLUSION
 
 pytestmark = pytest.mark.anyio
@@ -67,3 +67,14 @@ async def test_snapshots_stats_changes(counting: CountingCatalog) -> None:
     assert [c["id"] for c in (await service.changes())["added"]] == [KANJI]
     assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP]
     assert [c["id"] for c in (await service.by_author("bob"))["items"]] == [OCCLUSION]
+
+
+async def test_search_and_browse_with_filters(counting: CountingCatalog) -> None:
+    service = CatalogService(counting)
+    assert (await service.search("heatmap"))["total"] == 0  # obsolete addons are hidden by default
+    assert [c["id"] for c in (await service.search("heatmap", SearchFilters(show_obsolete=True)))["items"]] == [HEATMAP]
+    browse = await service.browse(SearchFilters(show_obsolete=True, sort="update_date"))
+    assert [c["id"] for c in browse["items"]] == [KANJI, OCCLUSION, HEATMAP]
+    assert [c["id"] for c in (await service.browse(SearchFilters(min_rating=200)))["items"]] == [OCCLUSION]
+    old_anki = await service.browse(SearchFilters(anki="2.1.50", show_obsolete=True))
+    assert [c["id"] for c in old_anki["items"]] == [HEATMAP]

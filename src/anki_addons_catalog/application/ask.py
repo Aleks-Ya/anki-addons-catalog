@@ -5,12 +5,13 @@ import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
+from urllib.parse import urlencode
 
 from anki_addons_catalog.application import usage as u
-from anki_addons_catalog.application.limits import DailyBudget, TtlCache
+from anki_addons_catalog.application.limits import DailyBudget, TtlCache, utc_today
 from anki_addons_catalog.application.usage import QuestionRecord, UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable
-from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, ToolSpec
+from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, ToolSpec
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
 
 log = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ FINAL_ROUND_NOTE = "You have used all tool rounds. Answer now with the informati
 MAX_TOOL_RESULT_CHARS = 30000
 _ADDON_LINK = re.compile(r"/addon/(\d+)|ankiweb\.net/shared/info/(\d+)")
 _SPACES = re.compile(r"\s+")
+FILTERED_TOOLS = {"search_addons", "filter_addons"}
+_MERGED_ARGS = {"tags", "exclude_tags"}
 
 Emit = Callable[[AnswerEvent], Awaitable[None]]
 
@@ -88,6 +91,14 @@ def referenced_ids(markdown: str) -> list[int]:
     for match in _ADDON_LINK.finditer(markdown):
         ids[int(match.group(1) or match.group(2))] = None
     return list(ids)
+
+
+def with_filters(arguments: dict[str, Any], filters: dict[str, Any]) -> dict[str, Any]:
+    """The model's tool arguments narrowed by the visitor's filters: tag lists are joined, other filters win."""
+    merged = {**arguments, **filters}
+    for name in _MERGED_ARGS & arguments.keys() & filters.keys():
+        merged[name] = list(dict.fromkeys([*arguments[name], *filters[name]]))
+    return merged
 
 
 def _tool_status(call: ToolCall) -> str:
@@ -154,14 +165,17 @@ class AskService:
             log.warning("Cannot read the latest snapshot date", exc_info=True)
             return None
 
-    async def ask(self, query: str) -> AsyncIterator[AnswerEvent]:
-        """Streams answer events; the events of a finished answer are cached per query and snapshot."""
+    async def ask(self, query: str, filters: SearchFilters | None = None) -> AsyncIterator[AnswerEvent]:
+        """Streams answer events; the events of a finished answer are cached per query, filters and snapshot.
+
+        The visitor's filters are applied to every search_addons and filter_addons call of the model."""
         query = normalize_query(query)
+        filters = filters or SearchFilters()
         started = time.monotonic()
         self._usage.add(u.AI_ASKED)
         snapshot = await self._snapshot_date()
-        record = QuestionRecord(query, snapshot)
-        key = f"{snapshot}|{query.lower()}"
+        record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(sort=False)) or None)
+        key = f"{snapshot}|{query.lower()}|{record.filters or ''}"
         cached = self._answers.get(key)
         if cached is not None:
             self._usage.add(u.AI_CACHED)
@@ -188,7 +202,7 @@ class AskService:
 
         async def run() -> None:
             try:
-                final = await self._answer(query, snapshot, emit, record)
+                final = await self._answer(query, filters, snapshot, emit, record)
                 if final:
                     self._answers.put(key, final)
             except CatalogUnavailable as e:
@@ -219,10 +233,14 @@ class AskService:
         record.duration_ms = round((time.monotonic() - started) * 1000)
         self._usage.record_question(record)
 
-    async def _answer(self, query: str, snapshot: str | None, emit: Emit,
+    async def _answer(self, query: str, filters: SearchFilters, snapshot: str | None, emit: Emit,
                       record: QuestionRecord) -> list[AnswerEvent] | None:
         tools = await self.tools()
+        tool_filters = filters.tool_args(utc_today())
         preface = f"(Dataset snapshot: {snapshot}.)\n\n" if snapshot else ""
+        if filters.params(sort=False):
+            preface += (f"(Visitor filters, applied to every search_addons and filter_addons call: "
+                        f"{filters.describe()}.)\n\n")
         messages: list[dict[str, Any]] = [{"role": "user", "content": f"{preface}Search query: {query}"}]
         cards: dict[int, AddonCard] = {}
         texts: list[str] = []
@@ -266,7 +284,7 @@ class AskService:
             if not turn.tool_calls or turn.stop_reason == "max_tokens" or rounds > self._max_rounds:
                 break
             content: list[dict[str, Any]] = list(
-                await asyncio.gather(*(self._run_tool(call, cards, emit) for call in turn.tool_calls)))
+                await asyncio.gather(*(self._run_tool(call, cards, emit, tool_filters) for call in turn.tool_calls)))
             step["tools"] = [{"name": call.name, "arguments": call.arguments, "is_error": result["is_error"],
                               "result_chars": len(result["content"])}
                              for call, result in zip(turn.tool_calls, content, strict=True)]
@@ -290,12 +308,14 @@ class AskService:
             await emit(event)
         return final
 
-    async def _run_tool(self, call: ToolCall, cards: dict[int, AddonCard], emit: Emit) -> dict[str, Any]:
+    async def _run_tool(self, call: ToolCall, cards: dict[int, AddonCard], emit: Emit,
+                        filters: dict[str, Any]) -> dict[str, Any]:
         await emit(AnswerEvent("status", _tool_status(call)))
         if call.name not in self._allowed:
             return {"type": "tool_result", "tool_use_id": call.id, "is_error": True,
                     "content": f"Unknown tool {call.name}"}
-        result = await self._catalog.call_tool(call.name, call.arguments)
+        arguments = with_filters(call.arguments, filters) if call.name in FILTERED_TOOLS else call.arguments
+        result = await self._catalog.call_tool(call.name, arguments)
         if not result.is_error:
             extract_cards(result.structured, cards)
         text = result.text or json.dumps(result.structured, ensure_ascii=False)

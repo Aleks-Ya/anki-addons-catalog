@@ -1,5 +1,6 @@
 <form action="/search" method="get" role="search" class="searchbox">
   <input type="search" name="q" value="{{ q or '' }}" maxlength="500" required
          placeholder="Describe what you want an addon to do…" aria-label="Question" autofocus>
+  {% if filters %}{% for name, value in filters.params(sort=False) %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}{% endif %}
   <button type="submit">Ask</button>
 </form>

@@ -48,7 +48,8 @@
     answer.replaceChildren();
     addons.replaceChildren();
     let streamed = "";
-    const source = new EventSource("/api/ask?q=" + encodeURIComponent(query));
+    const filters = root.dataset.filters ? "&" + root.dataset.filters : "";
+    const source = new EventSource("/api/ask?q=" + encodeURIComponent(query) + filters);
     const finish = () => source.close();
     const data = (event) => JSON.parse(event.data);
 

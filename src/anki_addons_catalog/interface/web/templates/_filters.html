@@ -1,0 +1,43 @@
+<details class="filters" open>
+  <summary>Filters{% if filters.chips() %} ({{ filters.chips() | length }} active){% endif %}</summary>
+  <form id="filters" action="/search" method="get">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <label for="f-anki">Your Anki version
+      <input id="f-anki" type="text" name="anki" value="{{ filters.anki or '' }}" placeholder="e.g. 25.09"
+             pattern="\d+(\.\d+){1,2}([ab]\d+)?" inputmode="decimal" autocomplete="off">
+    </label>
+    <small id="f-anki-saved" hidden>Use <a href="#">your Anki <span></span></a></small>
+    <fieldset>
+      <legend>Quality</legend>
+      {% for r in [None] + min_ratings | list %}
+      <label><input type="radio" name="rating" value="{{ r or '' }}" {% if filters.min_rating == r %}checked{% endif %}>
+        {% if r %}Rating ≥ {{ r }}{% else %}Any rating{% endif %}</label>
+      {% endfor %}
+    </fieldset>
+    <fieldset>
+      <legend>Status</legend>
+      <label><input type="checkbox" name="recent" value="1" {% if filters.recent %}checked{% endif %}> Updated in the last 2 years</label>
+      <label><input type="checkbox" name="active" value="1" {% if filters.not_archived %}checked{% endif %}> GitHub repo not archived</label>
+      <label><input type="checkbox" name="github" value="1" {% if filters.has_github %}checked{% endif %}> Has a GitHub repo</label>
+      <label><input type="checkbox" name="nopaid" value="1" {% if filters.hide_paid %}checked{% endif %}> Hide paid</label>
+      <label><input type="checkbox" name="obsolete" value="1" {% if filters.show_obsolete %}checked{% endif %}> Show obsolete</label>
+    </fieldset>
+    <fieldset>
+      <legend>Categories <small>(all selected must match)</small></legend>
+      <div class="filter-tags">
+      {% for t in function_tags %}
+        <label title="{{ t.description }}"><input type="checkbox" name="tag" value="{{ t.name }}" {% if t.name in filters.tags %}checked{% endif %}>
+          {{ t.name }} <span class="count">{{ t.addon_count }}</span></label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    {% if not q %}
+    <label for="f-sort">Sort by
+      <select id="f-sort" name="sort">
+        {% for key, label in sorts.items() %}<option value="{{ key }}" {% if filters.sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <button type="submit" class="apply">Apply</button>
+  </form>
+</details>

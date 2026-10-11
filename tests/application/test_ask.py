@@ -12,11 +12,12 @@ from anki_addons_catalog.application.ask import (
     extract_cards,
     normalize_query,
     referenced_ids,
+    with_filters,
 )
 from anki_addons_catalog.application.limits import DailyBudget, Pricing
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.config import Settings
-from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, ToolCall, Usage
+from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, Usage
 from tests.conftest import FakeLlm
 from tests.fixtures import KANJI, OCCLUSION
 
@@ -45,8 +46,8 @@ def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_roun
                       allowed_tools=TOOLS, max_tool_rounds=max_rounds, snapshot=snapshot, usage=usage)
 
 
-async def collect(ask: AskService, query: str) -> list[AnswerEvent]:
-    return [event async for event in ask.ask(query)]
+async def collect(ask: AskService, query: str, filters: SearchFilters | None = None) -> list[AnswerEvent]:
+    return [event async for event in ask.ask(query, filters)]
 
 
 async def test_offers_every_configured_tool_including_list_tags(catalog: McpCatalog) -> None:
@@ -202,3 +203,36 @@ def test_referenced_ids_in_order_without_duplicates() -> None:
 
 def test_normalize_query() -> None:
     assert normalize_query("  a \n b  ") == "a b"
+
+
+async def test_visitor_filters_narrow_the_model_searches(catalog: McpCatalog) -> None:
+    llm = FakeLlm([tools(ToolCall("t1", "search_addons", {"query": "a", "exclude_tags": ["paid"]}),
+                         ToolCall("t2", "get_addon", {"addon_id": KANJI})),
+                   answer("Done.")])
+    usage = UsageStats()
+    filters = SearchFilters(anki="25.02", min_rating=200)
+    await collect(service(catalog, llm, usage=usage), "image", filters)
+    assert llm.requests[0][0]["content"] == (
+        "(Dataset snapshot: 2026-09-01.)\n\n(Visitor filters, applied to every search_addons and filter_addons "
+        "call: obsolete hidden, Anki 25.02, Rating ≥ 200.)\n\nSearch query: image")
+    search, details = llm.requests[1][-1]["content"]
+    assert '"total":0' in search["content"].replace(" ", "")  # Kanji Helper is rated 120
+    assert not details["is_error"]
+    (q,) = usage.iter_questions()
+    assert q["filters"] == "anki=25.02&rating=200"
+
+
+async def test_answers_are_cached_per_filters(catalog: McpCatalog) -> None:
+    llm = FakeLlm([answer("One."), answer("Two.")])
+    ask = service(catalog, llm)
+    await collect(ask, "kanji")
+    await collect(ask, "kanji", SearchFilters(hide_paid=True))
+    await collect(ask, "kanji", SearchFilters(hide_paid=True))
+    assert len(llm.requests) == 2
+
+
+def test_with_filters_joins_tags_and_overrides_the_rest() -> None:
+    model = {"query": "x", "tags": ["cloze"], "exclude_tags": ["obsolete"], "min_rating": 5}
+    visitor = {"tags": ["statistics"], "exclude_tags": ["obsolete", "paid"], "min_rating": 50}
+    assert with_filters(model, visitor) == {"query": "x", "tags": ["cloze", "statistics"],
+                                            "exclude_tags": ["obsolete", "paid"], "min_rating": 50}

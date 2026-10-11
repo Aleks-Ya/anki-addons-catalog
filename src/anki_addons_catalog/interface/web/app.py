@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from xml.sax.saxutils import escape
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -24,7 +24,7 @@ from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, C
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
-from anki_addons_catalog.domain.models import AnswerEvent
+from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AnswerEvent, SearchFilters
 from anki_addons_catalog.domain.ports import CatalogPort
 from anki_addons_catalog.interface.web.rendering import compact_number, human_date, render_markdown, render_readme
 from anki_addons_catalog.interface.web.security import PASS_COOKIE, HumanCheck, client_ip
@@ -44,6 +44,7 @@ EXAMPLES = [
 
 QUESTIONS_PAGE = 50
 TAG_PAGE = 30
+SEARCH_PAGE = 30
 
 
 @dataclass
@@ -71,6 +72,14 @@ def _sse(event: str, data: Any) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
+def search_url(q: str = "", filters: SearchFilters | None = None, offset: int = 0) -> str:
+    """A /search URL with the query, the filters and the page offset."""
+    params = ([("q", q)] if q else []) + (filters or SearchFilters()).params(sort=not q)
+    if offset > 0:
+        params.append(("offset", str(offset)))
+    return "/search" + ("?" + urlencode(params) if params else "")
+
+
 def _usage_row(c: dict[str, float]) -> dict[str, float]:
     """One row of the usage table from the raw counters."""
     return {
@@ -89,7 +98,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates.env.filters["human_date"] = human_date
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
                                  public_url=ctx.public_url, top_metrics=TOP_METRICS,
-                                 static_hash=_static_hashes())
+                                 static_hash=_static_hashes(), search_url=search_url, sorts=SORTS,
+                                 min_ratings=MIN_RATINGS)
 
     async def keepalive() -> None:
         while ctx.keepalive_seconds > 0:
@@ -127,6 +137,14 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         context.setdefault("dataset_date", await dataset_date() if status_code < 500 else None)
         return templates.TemplateResponse(request, name, context, status_code=status_code)
 
+    async def search_filters(request: Request) -> SearchFilters:
+        """The visitor's filters; unknown tags are dropped, since the MCP tools reject them."""
+        filters = SearchFilters.parse(request.query_params)
+        if filters.tags:
+            known = {t["name"] for t in await ctx.catalog.tags()}
+            filters = filters.model_copy(update={"tags": [t for t in filters.tags if t in known]})
+        return filters
+
     def view(name: str) -> None:
         ctx.usage.add(u.VIEW_PREFIX + name)
 
@@ -162,12 +180,21 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     @app.get("/search", response_class=HTMLResponse)
     async def search(request: Request, q: str = "", offset: int = 0) -> HTMLResponse:
+        """Keyword search plus the AI answer, or browsing the whole catalog without a query; both filtered."""
         q = q.strip()[:ctx.max_query_chars]
+        offset = max(offset, 0)
+        filters = await search_filters(request)
         view("search")
         if q:
             ctx.usage.add(u.KEYWORD_SEARCH)
-        results = await ctx.catalog.search(q, limit=30, offset=max(offset, 0)) if q else None
-        return await page(request, "search.html", q=q, results=results, offset=offset)
+        results, all_tags = await asyncio.gather(
+            ctx.catalog.search(q, filters, limit=SEARCH_PAGE, offset=offset) if q
+            else ctx.catalog.browse(filters, limit=SEARCH_PAGE, offset=offset),
+            ctx.catalog.tags())
+        function_tags = sorted((t for t in all_tags if t["group"] == "function"),
+                               key=lambda t: (t["name"] not in filters.tags, -t.get("addon_count", 0), t["name"]))
+        return await page(request, "search.html", q=q, results=results, offset=offset, page_size=SEARCH_PAGE,
+                          filters=filters, function_tags=function_tags)
 
     @app.post("/api/verify")
     async def verify(request: Request, token: str = Form("")) -> Response:
@@ -203,7 +230,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
         async def events() -> AsyncIterator[str]:
             try:
-                async for event in ctx.ask.ask(query):
+                async for event in ctx.ask.ask(query, await search_filters(request)):
                     yield _sse(event.type, _event_data(event))
             except BudgetExhausted:
                 yield _sse("error", "The AI search has reached its daily budget. The keyword results below "

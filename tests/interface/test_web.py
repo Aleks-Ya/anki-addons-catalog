@@ -9,7 +9,8 @@ from mcp.server.mcpserver import MCPServer
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.bootstrap import create_app
 from anki_addons_catalog.config import Settings
-from anki_addons_catalog.domain.models import LlmTurn, ToolCall, Usage
+from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, Usage
+from anki_addons_catalog.interface.web.app import search_url
 from anki_addons_catalog.interface.web.security import PASS_COOKIE
 from tests.conftest import FakeLlm
 from tests.fixtures import HEATMAP, KANJI, OCCLUSION
@@ -128,6 +129,38 @@ def test_search_page_has_keyword_results_and_ai_section(make_client: Any) -> Non
     assert f'href="/addon/{KANJI}"' in html
 
 
+def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> None:
+    client = make_client()
+    html = client.get("/search", params={"q": "image", "rating": "200", "tag": "image-occlusion"}).text
+    assert f'href="/addon/{OCCLUSION}"' in html
+    assert 'data-filters="tag=image-occlusion&amp;rating=200"' in html
+    assert '<input type="hidden" name="tag" value="image-occlusion">' in html  # a new question keeps the filters
+    assert 'href="/search?q=image&amp;rating=200"' in html  # the chip that removes the tag
+    assert 'name="sort"' not in html  # a query ranks by relevance
+    assert f'href="/addon/{KANJI}"' not in client.get("/search", params={"q": "kanji", "anki": "2.1.50"}).text
+
+
+def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
+    client = make_client()
+    html = client.get("/search").text
+    assert "All addons <small>(2)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
+    assert f'href="/addon/{HEATMAP}"' in client.get("/search", params={"obsolete": "1", "tag": "statistics"}).text
+    assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
+
+
+def test_search_url_keeps_filters() -> None:
+    assert search_url("a b", SearchFilters(tags=["cloze"], sort="likes"), 30) == "/search?q=a+b&tag=cloze&offset=30"
+    assert search_url("", SearchFilters(sort="likes")) == "/search?sort=likes"
+    assert search_url() == "/search"
+
+
+def test_ask_applies_filters(make_client: Any) -> None:
+    llm = scripted_llm()
+    make_client(llm).get("/api/ask", params={"q": "kanji", "anki": "25.09", "tag": "dictionary"})
+    assert "Visitor filters" in llm.requests[0][0]["content"]
+    assert "Anki 25.09, dictionary" in llm.requests[0][0]["content"]
+
+
 def test_tags_page_lists_categories(make_client: Any) -> None:
     html = make_client().get("/tags").text
     assert 'href="/tag/dictionary"' in html
@@ -142,6 +175,7 @@ def test_tag_page_lists_addons_and_hides_obsolete_ones(make_client: Any) -> None
     assert f'href="/addon/{HEATMAP}"' not in statistics
     assert "obsolete addons are hidden" in statistics
     assert f'href="/addon/{HEATMAP}"' in client.get("/tag/obsolete").text
+    assert 'href="/search?tag=statistics"' in statistics
 
 
 def test_unknown_tag_is_404(make_client: Any) -> None:

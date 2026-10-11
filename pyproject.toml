@@ -46,8 +46,12 @@ dev = [
     "ruff",
     "mypy",
     "bump-my-version",
-    "anki-addons-mcp>=0.3.0",
+    "anki-addons-mcp>=0.4.0.dev0",
 ]
+
+[tool.uv.sources]
+# search_addons with every filter_addons filter is not on PyPI yet; this is the commit the MCP Space runs
+anki-addons-mcp = { git = "https://github.com/Aleks-Ya/anki-addons-mcp", rev = "73191fd12f08c3cc964e40bc9c7df1774d87e0e3" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

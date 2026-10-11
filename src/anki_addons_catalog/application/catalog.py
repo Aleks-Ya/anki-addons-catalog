@@ -1,8 +1,9 @@
 import json
 from typing import Any
 
-from anki_addons_catalog.application.limits import TtlCache
+from anki_addons_catalog.application.limits import TtlCache, utc_today
 from anki_addons_catalog.domain.errors import ToolFailed
+from anki_addons_catalog.domain.models import OBSOLETE_TAG, SearchFilters
 from anki_addons_catalog.domain.ports import CatalogPort
 
 TOP_METRICS = {
@@ -10,7 +11,7 @@ TOP_METRICS = {
     "forum_posts": "Most discussed on the Anki Forum", "recently_updated": "Recently updated",
 }
 STAT_GROUPS = ["license", "primary_language", "description_language", "anki_version", "update_year", "ai_tag"]
-OBSOLETE_TAG = "obsolete"
+__all__ = ["OBSOLETE_TAG", "TOP_METRICS", "CatalogService"]
 
 
 class CatalogService:
@@ -31,12 +32,17 @@ class CatalogService:
         self._cache.put(key, result.structured)
         return result.structured
 
-    async def search(self, query: str, limit: int = 30, offset: int = 0,
-                     anki_version: str | None = None) -> dict[str, Any]:
-        args: dict[str, Any] = {"query": query, "limit": limit, "offset": offset}
-        if anki_version:
-            args["compatible_with_anki"] = anki_version
-        page: dict[str, Any] = await self.call("search_addons", **args)
+    async def search(self, query: str, filters: SearchFilters | None = None, limit: int = 30,
+                     offset: int = 0) -> dict[str, Any]:
+        """Keyword search ranked by relevance; `filters.sort` does not apply."""
+        args = (filters or SearchFilters()).tool_args(utc_today())
+        page: dict[str, Any] = await self.call("search_addons", query=query, limit=limit, offset=offset, **args)
+        return page
+
+    async def browse(self, filters: SearchFilters, limit: int = 30, offset: int = 0) -> dict[str, Any]:
+        """Every addon matching the filters, in the filters' sort order."""
+        page: dict[str, Any] = await self.call("filter_addons", sort_by=filters.sort, limit=limit, offset=offset,
+                                               **filters.tool_args(utc_today()))
         return page
 
     async def top(self, metric: str = "rating", limit: int = 10) -> dict[str, Any]:

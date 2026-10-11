@@ -9,7 +9,7 @@
 .brand-item { display: flex; align-items: center; gap: .5rem; }
 @media (max-width: 576px) {
   .dataset-date { display: none; }
-  header nav { flex-wrap: wrap; }
+  header nav, header nav ul { flex-wrap: wrap; }
   .brand strong { white-space: nowrap; }
 }
 .hero { text-align: center; padding: 2rem 0 1rem; }
@@ -63,3 +63,21 @@ td.num, th.num { text-align: right; }
 .bars td.bar { width: 40%; }
 .bars td.bar span { display: block; height: .6rem; background: var(--pico-primary); border-radius: 2px; }
 footer.container { margin-top: 3rem; color: var(--pico-muted-color); }
+
+.search-layout { display: grid; grid-template-columns: 16rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+.search-results { min-width: 0; }
+.filters { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; font-size: .9rem; margin: 0; }
+.filters summary { display: none; }
+.filters fieldset { margin-bottom: 1rem; }
+.filters legend { font-weight: 600; margin-bottom: .25rem; }
+.filters label { margin-bottom: .25rem; }
+.filters input:not([type=checkbox], [type=radio]), .filters select { margin-bottom: .25rem; padding-block: .4rem; height: auto; }
+.filter-tags { max-height: 16rem; overflow-y: auto; }
+.filter-tags .count, .filters legend small { color: var(--pico-muted-color); font-weight: normal; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; font-size: .85rem; }
+.chip { color: var(--pico-color); }
+@media (max-width: 767px) {
+  .search-layout { grid-template-columns: 1fr; gap: 1rem; }
+  .filters { position: static; max-height: none; }
+  .filters summary { display: list-item; font-weight: 600; }
+}
