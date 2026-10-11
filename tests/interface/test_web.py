@@ -62,7 +62,7 @@ def test_pages_render(make_client: Any, path: str) -> None:
     assert response.status_code == 200, response.text
     assert "Anki Addons Catalog" in response.text
     assert '<span class="beta"' in response.text
-    assert 'class="dataset-date"' in response.text and ">3 Sep 2026</a>" in response.text
+    assert 'class="dataset-date"' in response.text and ">1 Sep 2026</a>" in response.text
 
 
 def test_index_lists_top_addons(make_client: Any) -> None:
@@ -85,7 +85,7 @@ def test_addon_page_resolves_relative_readme_links_against_github(make_client: A
 
 def test_about_shows_dataset_date(make_client: Any) -> None:
     text = make_client().get("/about").text
-    assert "created on <b>3 Sep 2026</b>" in text
+    assert "collected on <b>1 Sep 2026</b>" in text
     assert "stored for 90 days" in text
 
 
