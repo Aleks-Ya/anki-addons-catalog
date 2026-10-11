@@ -154,6 +154,13 @@ def test_cards_and_addon_page_link_tags(make_client: Any) -> None:
     assert 'href="/tag/dictionary"' in client.get(f"/addon/{KANJI}").text
 
 
+def test_static_links_are_root_relative(make_client: Any) -> None:
+    # The custom-domain proxy reports http, so absolute links would be blocked as mixed content
+    html = make_client().get("/").text
+    assert 'href="/static/app.css?v=' in html
+    assert "http://testserver/static" not in html
+
+
 def test_stats_has_ai_tags(make_client: Any) -> None:
     html = make_client().get("/stats").text
     assert "AI tag" in html

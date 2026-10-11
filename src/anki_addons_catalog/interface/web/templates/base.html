@@ -7,13 +7,13 @@
   <meta name="description" content="{% block description %}Find Anki addons by asking in plain words. AI-powered search over every addon on AnkiWeb, with ratings, compatibility and maintenance data.{% endblock %}">
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}?v={{ static_hash['app.css'] }}">
-  <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css').path }}?v={{ static_hash['app.css'] }}">
+  <link rel="icon" href="{{ url_for('static', path='favicon.svg').path }}" type="image/svg+xml">
 </head>
 <body>
 <header class="container">
   <nav>
-    <ul><li class="brand-item"><a href="/" class="brand"><img src="{{ url_for('static', path='favicon.svg') }}" alt="" width="28" height="28"> <strong>Anki Addons Catalog</strong>
+    <ul><li class="brand-item"><a href="/" class="brand"><img src="{{ url_for('static', path='favicon.svg').path }}" alt="" width="28" height="28"> <strong>Anki Addons Catalog</strong>
       <span class="beta" title="The site is new: expect rough edges">Beta</span></a>
       {% if dataset_date %}<a href="/about" class="dataset-date" title="The catalog data was collected on {{ dataset_date | human_date }} and is refreshed monthly">{{ dataset_date | human_date }}</a>{% endif %}</li></ul>
     <ul>

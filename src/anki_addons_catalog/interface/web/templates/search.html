@@ -27,4 +27,4 @@
 </section>
 {% endif %}
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', path='ask.js') }}?v={{ static_hash['ask.js'] }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='ask.js').path }}?v={{ static_hash['ask.js'] }}" defer></script>{% endblock %}
