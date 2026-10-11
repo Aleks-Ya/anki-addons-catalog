@@ -139,11 +139,15 @@ redirects to it.
 1. In the Space settings (HF Pro), open **Custom domain** and enter `www.anki-addons-catalog.com`.
 2. In the Cloudflare dashboard → **DNS**, add `CNAME www → hf.space` with the proxy status **DNS only** (grey
    cloud), so HuggingFace can verify the domain and issue the TLS certificate. Keep no other record at `www`.
-3. Redirect the apex: add a proxied (orange cloud) `A @ → 192.0.2.1` placeholder record, then a **Redirect Rule**
-   (Rules → Redirect Rules): when the hostname equals `anki-addons-catalog.com`, redirect dynamically to
-   `concat("https://www.anki-addons-catalog.com", http.request.uri.path)` with status 301 and the query string kept.
+3. Redirect the apex: add a proxied (orange cloud) `A @ → 192.0.2.1` placeholder record, then two **Redirect
+   Rules** (Rules → Redirect Rules), one per protocol (Cloudflare requires the protocol in a wildcard pattern):
+   - Wildcard pattern `https://anki-addons-catalog.com/*` → `https://www.anki-addons-catalog.com/${1}`
+   - Wildcard pattern `http://anki-addons-catalog.com/*` → `https://www.anki-addons-catalog.com/${1}`
+
+   Both with status 301 and **Preserve query string** checked. Without a matching rule Cloudflare forwards the
+   request to the placeholder IP, and visitors get HTTP 522.
 4. When the Space settings show the domain as ready, check `https://www.anki-addons-catalog.com/healthz` and
-   `https://anki-addons-catalog.com/` (it should redirect).
+   `https://anki-addons-catalog.com/` and `http://anki-addons-catalog.com/` (both should redirect).
 
 The Space must be public for visitors to see it on the custom domain.
 
