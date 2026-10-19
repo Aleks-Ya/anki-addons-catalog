@@ -11,7 +11,7 @@
       <legend>Quality</legend>
       {% for r in [None] + min_ratings | list %}
       <label><input type="radio" name="rating" value="{{ r or '' }}" {% if filters.min_rating == r %}checked{% endif %}>
-        {% if r %}Rating ≥ {{ r }}{% else %}Any rating{% endif %}</label>
+        {% if r %}≥ {{ r }} votes{% else %}Any number of votes{% endif %}</label>
       {% endfor %}
     </fieldset>
     <fieldset>

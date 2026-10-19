@@ -13,7 +13,7 @@
   ({{ diff.addons_from }} → {{ diff.addons_to }} addons).</p>
 <section><h2>New addons</h2>{% with cards=diff.added %}{% include "_cards.html" %}{% endwith %}</section>
 <div class="grid">
-  <section><h2>Rising ratings</h2>{{ changes_table(diff.rating_movers, "rating_delta", "") }}</section>
+  <section><h2>Most new votes</h2>{{ changes_table(diff.rating_movers, "rating_delta", "") }}</section>
   <section><h2>Rising GitHub stars</h2>{{ changes_table(diff.star_movers, "stars_delta", "⭐") }}</section>
 </div>
 <section><h2>Recently updated</h2>

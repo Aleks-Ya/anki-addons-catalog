@@ -8,7 +8,7 @@ from pydantic import BaseModel
 AI_PROVENANCE = "AI-generated summary; may contain mistakes."
 OBSOLETE_TAG = "obsolete"
 PAID_TAG = "paid"
-SORTS = {"rating": "Rating", "likes": "Likes", "stars": "GitHub stars", "update_date": "Recently updated",
+SORTS = {"rating": "Best rated", "likes": "Likes", "stars": "GitHub stars", "update_date": "Recently updated",
          "anki_version": "Newest Anki version"}
 MIN_RATINGS = (10, 50, 200)
 RECENT_DAYS = 730
@@ -24,6 +24,7 @@ class AddonCard(BaseModel):
     rating: int = 0
     likes: int = 0
     dislikes: int = 0
+    approval: float | None = None  # Wilson lower bound of likes among votes; absent in get_addon records
     update_date: str | None = None
     anki_version: str | None = None
     ai_summary: str | None = None
@@ -152,7 +153,7 @@ class SearchFilters(BaseModel):
         chips += [(label, self.model_copy(update={name: False})) for name, label in labels.items()
                   if getattr(self, name)]
         if self.min_rating:
-            chips.append((f"Rating ≥ {self.min_rating}", self.model_copy(update={"min_rating": None})))
+            chips.append((f"≥ {self.min_rating} votes", self.model_copy(update={"min_rating": None})))
         return chips
 
     def describe(self) -> str:

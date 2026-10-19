@@ -33,9 +33,9 @@ def test_invalid_values_are_dropped() -> None:
 def test_chips_remove_one_filter_each() -> None:
     filters = parse("anki=2.1.66&tag=cloze&recent=1&rating=10")
     chips = dict(filters.chips())
-    assert list(chips) == ["Anki 2.1.66", "cloze", "Updated in 2 years", "Rating ≥ 10"]
+    assert list(chips) == ["Anki 2.1.66", "cloze", "Updated in 2 years", "≥ 10 votes"]
     assert chips["cloze"].tags == [] and chips["cloze"].anki == "2.1.66"
-    assert filters.describe() == "obsolete hidden, Anki 2.1.66, cloze, Updated in 2 years, Rating ≥ 10"
+    assert filters.describe() == "obsolete hidden, Anki 2.1.66, cloze, Updated in 2 years, ≥ 10 votes"
 
 
 def test_sort_is_left_out_on_request() -> None:

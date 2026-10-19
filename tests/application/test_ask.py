@@ -214,7 +214,7 @@ async def test_visitor_filters_narrow_the_model_searches(catalog: McpCatalog) ->
     await collect(service(catalog, llm, usage=usage), "image", filters)
     assert llm.requests[0][0]["content"] == (
         "(Dataset snapshot: 2026-09-01.)\n\n(Visitor filters, applied to every search_addons and filter_addons "
-        "call: obsolete hidden, Anki 25.02, Rating ≥ 200.)\n\nSearch query: image")
+        "call: obsolete hidden, Anki 25.02, ≥ 200 votes.)\n\nSearch query: image")
     search, details = llm.requests[1][-1]["content"]
     assert '"total":0' in search["content"].replace(" ", "")  # Kanji Helper is rated 120
     assert not details["is_error"]

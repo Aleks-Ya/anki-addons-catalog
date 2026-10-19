@@ -23,14 +23,15 @@ TAGS = [
 ]
 
 
-def _addon(addon_id: int, title: str, *, rating: int, update_date: str, anki_version: str, summary: str,
-           description: str, tags: list[str], user: str | None = None, stars: int = 0,
+def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date: str, anki_version: str,
+           summary: str, description: str, tags: list[str], user: str | None = None, stars: int = 0,
            readme: str | None = None) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
         "anki_web": {
-            "title": title, "addon_page_url": f"https://ankiweb.net/shared/info/{addon_id}", "rating": rating,
-            "likes": rating + 2, "dislikes": 2, "update_date": update_date, "anki_version": anki_version,
+            "title": title, "addon_page_url": f"https://ankiweb.net/shared/info/{addon_id}",
+            "rating": likes + dislikes,  # AnkiWeb's rating is the vote count, not a score
+            "likes": likes, "dislikes": dislikes, "update_date": update_date, "anki_version": anki_version,
             "anki_point_version": to_point(anki_version), "anki_version_kind": "tested",
             "branches": [{"min_version": anki_version.rstrip("~"), "max_version": "+", "updated": update_date,
                           "min_point_version": to_point(anki_version), "max_version_kind": "open"}],
@@ -51,16 +52,16 @@ def _addon(addon_id: int, title: str, *, rating: int, update_date: str, anki_ver
 
 def latest_addons() -> list[AddonDetails]:
     return [
-        _addon(KANJI, "Kanji Helper", rating=120, update_date="2026-08-20", anki_version="25.02~",
+        _addon(KANJI, "Kanji Helper", likes=118, dislikes=2, update_date="2026-08-20", anki_version="25.02~",
                summary="Shows kanji stroke order.", description="Kanji stroke order and readings.", tags=["dictionary"],
                user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)\n\n"
                       '<p align="center"><a href="https://y.org" target="_blank"><img src="img/b.png"></a></p>\n\n'
                       '<img src="x.png" onerror="alert(2)"><a href="javascript:alert(3)">js</a>\n\n'
                       '<iframe src="https://evil.org"></iframe><style>body{display:none}</style>'),
-        _addon(OCCLUSION, "Image Occlusion Plus", rating=300, update_date="2026-08-01", anki_version="2.1.66~",
-               summary="Creates image occlusion cards.", description="Hide parts of an image.", tags=["image-occlusion"], user="bob",
-               stars=500),
-        _addon(HEATMAP, "Review Heatmap", rating=80, update_date="2024-01-10", anki_version="2.1.20~",
+        _addon(OCCLUSION, "Image Occlusion Plus", likes=298, dislikes=2, update_date="2026-08-01",
+               anki_version="2.1.66~", summary="Creates image occlusion cards.", description="Hide parts of an image.",
+               tags=["image-occlusion"], user="bob", stars=500),
+        _addon(HEATMAP, "Review Heatmap", likes=78, dislikes=2, update_date="2024-01-10", anki_version="2.1.20~",
                summary="Heatmap of reviews.", description="Heatmap of review history.",
                tags=["statistics", "obsolete"]),
     ]

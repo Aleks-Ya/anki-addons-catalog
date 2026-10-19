@@ -22,7 +22,7 @@
   <article>
     <h3>AnkiWeb</h3>
     <dl>
-      <dt>Rating</dt><dd>{{ w.rating }} (👍 {{ w.likes }} · 👎 {{ w.dislikes }})</dd>
+      <dt>Votes</dt><dd>{{ w.rating }} (👍 {{ w.likes }} · 👎 {{ w.dislikes }})</dd>
       <dt>Updated</dt><dd>{{ w.update_date or "unknown" }}</dd>
       <dt>Anki versions</dt><dd>{{ w.anki_version or "unknown" }}</dd>
       {% if w.description_language %}<dt>Description language</dt><dd>{{ w.description_language }}</dd>{% endif %}
