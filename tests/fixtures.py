@@ -34,7 +34,8 @@ def _addon(addon_id: int, title: str, *, rating: int, update_date: str, anki_ver
             "anki_point_version": to_point(anki_version), "anki_version_kind": "tested",
             "branches": [{"min_version": anki_version.rstrip("~"), "max_version": "+", "updated": update_date,
                           "min_point_version": to_point(anki_version), "max_version_kind": "open"}],
-            "links": [f"https://example.com/{addon_id}"], "description_language": "en",
+            "links": [{"url": f"https://example.com/{addon_id}", "section": "description", "count": 1,
+                       "texts": ["site"]}], "description_language": "en",
         },
         "github": {
             "user": user, "repo": title.lower().replace(" ", "-"), "stars": stars, "license": "MIT",
