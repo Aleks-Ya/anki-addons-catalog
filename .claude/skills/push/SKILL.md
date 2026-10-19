@@ -80,12 +80,16 @@ what failed and what you changed.
 
 The scan publishes to SonarCloud (project `Aleks-Ya_anki-addons-catalog`, org `aleks-ya`). The workflow does not
 wait for the quality gate, so a green run does not mean Sonar is clean. After CI is green, read the report (the
-API is readable anonymously):
+API is readable anonymously). Always pass `branch=main`: the project's main branch in SonarCloud is an empty
+`master`, so `main` is analyzed as a short-lived branch and queries without `branch` return nothing (gate
+`NONE`, 0 issues). Check that the `main` analysis is for the pushed commit
+(`api/project_branches/list?project=Aleks-Ya_anki-addons-catalog`, field `commit.sha`); it lands about a
+minute after the run finishes.
 
 ```bash
-curl -s 'https://sonarcloud.io/api/qualitygates/project_status?projectKey=Aleks-Ya_anki-addons-catalog' | python3 -m json.tool
-curl -s 'https://sonarcloud.io/api/issues/search?componentKeys=Aleks-Ya_anki-addons-catalog&resolved=false&ps=100' | python3 -m json.tool
-curl -s 'https://sonarcloud.io/api/hotspots/search?projectKey=Aleks-Ya_anki-addons-catalog&status=TO_REVIEW&ps=100' | python3 -m json.tool
+curl -s 'https://sonarcloud.io/api/qualitygates/project_status?projectKey=Aleks-Ya_anki-addons-catalog&branch=main' | python3 -m json.tool
+curl -s 'https://sonarcloud.io/api/issues/search?componentKeys=Aleks-Ya_anki-addons-catalog&branch=main&resolved=false&ps=100' | python3 -m json.tool
+curl -s 'https://sonarcloud.io/api/hotspots/search?projectKey=Aleks-Ya_anki-addons-catalog&branch=main&status=TO_REVIEW&ps=100' | python3 -m json.tool
 ```
 
 Focus on issues and hotspots in the code just pushed (recent `creationDate`, or files in the diff). For each:
@@ -98,7 +102,7 @@ Focus on issues and hotspots in the code just pushed (recent `creationDate`, or 
   code has no open issues.
 
 If the API returns nothing usable, point the user to
-https://sonarcloud.io/project/issues?id=Aleks-Ya_anki-addons-catalog&resolved=false
+https://sonarcloud.io/project/issues?id=Aleks-Ya_anki-addons-catalog&branch=main&resolved=false
 
 ## Done
 
