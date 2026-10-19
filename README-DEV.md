@@ -88,8 +88,9 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
    git remote add space https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
    git push space main
    ```
-   Or let CI do it: `.github/workflows/deploy-space.yml` pushes `main` after a green Unit-tests run. It needs a
-   GitHub environment `huggingface` with the secret `HF_TOKEN` (a HuggingFace token with write access to the Space).
+
+Step 3 for an existing Space is automated by the skill `/deploy`: it pushes `main` after a green CI run, waits
+for the rebuild and smoke-tests the site. CI does not deploy.
 
 Run one replica: the rate limiter and the caches live in memory and reset on restart.
 
