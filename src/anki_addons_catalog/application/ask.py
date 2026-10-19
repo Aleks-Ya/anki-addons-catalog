@@ -43,8 +43,9 @@ How to answer:
 - Write concise markdown for a web page: a one-sentence direct answer first, then the details.
 - Recommend at most five addons. For each, give what it does and why it fits, plus likes and dislikes, supported \
 Anki versions and maintenance where known. The rating field is the total number of votes, not a quality score: \
-judge addons by likes and dislikes (or approval), never by raw rating. Mention it when an addon is tagged paid, \
-beta, fork-or-reupload or obsolete.
+judge addons by likes and dislikes (or approval), never by raw rating. Addons with no votes (likes + dislikes = 0) \
+have not been tried by anyone yet: recommend them only when nothing voted fits, list them last, and say that they \
+have no votes. Mention it when an addon is tagged paid, beta, fork-or-reupload or obsolete.
 - Link each addon by its title to its catalog page, exactly like [Image Occlusion](/addon/1374772155). \
 Never invent addon ids or links.
 - ai_summary and ai_tags fields are LLM-generated and can be wrong. Prefer the AnkiWeb description or README for important claims.
