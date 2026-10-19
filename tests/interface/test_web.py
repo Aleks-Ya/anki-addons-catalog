@@ -94,7 +94,7 @@ def test_addon_page_renders_readme_raw_html(make_client: Any) -> None:
 
 def test_addon_page_renders_description_html_safely(make_client: Any) -> None:
     html = make_client().get(f"/addon/{OCCLUSION}").text
-    assert '<article class="description-html"><h2>Occlusion</h2>' in html
+    assert '<article class="description-html" data-collapsible><h2>Occlusion</h2>' in html
     assert '<img src="https://example.com/o.png" width="900">' in html
     assert 'href="https://example.com/docs" target="_blank" rel="nofollow noopener noreferrer"' in html
     for hostile in ("alert(4)", "alert(5)", "alert(6)", "javascript:"):
@@ -104,7 +104,7 @@ def test_addon_page_renders_description_html_safely(make_client: Any) -> None:
 
 def test_addon_page_keeps_line_breaks_of_pre_wrap_description(make_client: Any) -> None:
     html = make_client().get(f"/addon/{HEATMAP}").text
-    assert '<article class="description-html pre-wrap">Line one\nLine two</article>' in html
+    assert '<article class="description-html pre-wrap" data-collapsible>Line one\nLine two</article>' in html
 
 
 def test_addon_page_falls_back_to_plain_description(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -113,12 +113,14 @@ def test_addon_page_falls_back_to_plain_description(make_client: Any, monkeypatc
 
     monkeypatch.setattr(CatalogService, "description_html", no_html)
     html = make_client().get(f"/addon/{OCCLUSION}").text
-    assert '<article class="description">Hide parts of an image.</article>' in html
+    assert '<article class="description" data-collapsible>Hide parts of an image.</article>' in html
 
 
-def test_addon_page_prefers_readme_over_description(make_client: Any) -> None:
+def test_addon_page_shows_description_before_readme(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI}").text
-    assert "<h2>README</h2>" in html and "<h2>Description</h2>" not in html
+    assert html.index("<h2>Description</h2>") < html.index("<h2>README</h2>")
+    assert '<article class="description" data-collapsible>Kanji stroke order and readings.</article>' in html
+    assert '<article class="readme" data-collapsible>' in html
 
 
 def test_addon_page_resolves_relative_readme_links_against_github(make_client: Any) -> None:

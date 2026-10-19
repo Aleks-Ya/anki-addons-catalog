@@ -47,6 +47,9 @@ a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
 .readme img, .description-html img { max-width: 100%; height: auto; }
 .readme [align=center], .description-html [align=center] { text-align: center; }
 .description, .pre-wrap { white-space: pre-wrap; }
+[data-collapsible].collapsed { max-height: 24rem; overflow: hidden; }
+[data-collapsible].collapsed.overflowing { mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.expand { margin-top: .5rem; padding: .3rem .9rem; font-size: .9rem; }
 .summary footer { margin-top: .5rem; }
 
 mark.label-active, mark.verdict-supported { background: #bbf7d0; color: #14532d; }

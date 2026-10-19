@@ -34,3 +34,33 @@
     }
   });
 })();
+
+// Cuts long descriptions and READMEs to their beginning, with a button to expand them.
+(() => {
+  for (const article of document.querySelectorAll("[data-collapsible]")) {
+    article.classList.add("collapsed");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary outline expand";
+    button.textContent = "Show more";
+    button.setAttribute("aria-expanded", "false");
+    button.addEventListener("click", () => {
+      const collapsed = article.classList.toggle("collapsed");
+      button.textContent = collapsed ? "Show more" : "Show less";
+      button.setAttribute("aria-expanded", String(!collapsed));
+      const section = article.closest("section");
+      if (collapsed && section.getBoundingClientRect().top < 0) section.scrollIntoView({ block: "start" });
+    });
+    // Images load after this script and change the height, so re-check whenever the article resizes.
+    const update = () => {
+      if (!article.classList.contains("collapsed")) return;
+      const overflowing = article.scrollHeight > article.clientHeight;
+      article.classList.toggle("overflowing", overflowing);
+      if (overflowing) article.after(button);
+      else button.remove();
+    };
+    new ResizeObserver(update).observe(article);
+    for (const image of article.querySelectorAll("img")) image.addEventListener("load", update);
+    window.addEventListener("load", update);
+  }
+})();

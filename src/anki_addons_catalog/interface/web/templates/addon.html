@@ -83,19 +83,21 @@
 </section>
 {% endif %}
 
-{% if readme %}
-<section>
-  <h2>README</h2>
-  <article class="readme">{{ readme | readme(gh.user if gh else none, gh.repo if gh else none) | safe }}</article>
-</section>
-{% elif description_html or description %}
+{% if description_html or description %}
 <section>
   <h2>Description</h2>
   {% if description_html %}
-  <article class="description-html{% if w.description_pre_wrap %} pre-wrap{% endif %}">{{ description_html | description | safe }}</article>
+  <article class="description-html{% if w.description_pre_wrap %} pre-wrap{% endif %}" data-collapsible>{{ description_html | description | safe }}</article>
   {% else %}
-  <article class="description">{{ description }}</article>
+  <article class="description" data-collapsible>{{ description }}</article>
   {% endif %}
+</section>
+{% endif %}
+
+{% if readme %}
+<section>
+  <h2>README</h2>
+  <article class="readme" data-collapsible>{{ readme | readme(gh.user if gh else none, gh.repo if gh else none) | safe }}</article>
 </section>
 {% endif %}
 {% endblock %}
