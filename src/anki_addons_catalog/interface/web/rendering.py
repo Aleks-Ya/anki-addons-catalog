@@ -71,11 +71,12 @@ def _resolve_attribute(link_base: str | None, image_base: str | None, tag: str, 
     return value
 
 
-def _sanitize(html: str, link_base: str | None, image_base: str | None) -> str:
+def _sanitize(html: str, link_base: str | None, image_base: str | None,
+              set_tag_attribute_values: dict[str, dict[str, str]] | None = None) -> str:
     return str(nh3.clean(
         html, tags=_README_TAGS, attributes=_README_ATTRIBUTES,
-        tag_attribute_values={"a": {"target": {"_blank"}}}, link_rel="nofollow noopener noreferrer",
-        url_schemes={"http", "https", "mailto"},
+        tag_attribute_values={"a": {"target": {"_blank"}}}, set_tag_attribute_values=set_tag_attribute_values,
+        link_rel="nofollow noopener noreferrer", url_schemes={"http", "https", "mailto"},
         attribute_filter=partial(_resolve_attribute, link_base, image_base)))
 
 
@@ -92,6 +93,11 @@ def render_readme(text: str | None, github_user: str | None, github_repo: str | 
         repo = f"https://github.com/{github_user}/{github_repo}"
         env = {"link_base": f"{repo}/blob/HEAD/", "image_base": f"{repo}/raw/HEAD/"}
     return _sanitize(_README_MD.render(text, env), env.get("link_base"), env.get("image_base"))
+
+
+def render_description(html: str | None) -> str:
+    """Sanitizes an AnkiWeb description: the author's HTML, with absolute URLs; links open in a new tab."""
+    return _sanitize(html, None, None, {"a": {"target": "_blank"}}) if html else ""
 
 
 def compact_number(value: Any) -> str:

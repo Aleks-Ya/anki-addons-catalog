@@ -25,7 +25,7 @@ TAGS = [
 
 def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date: str, anki_version: str,
            summary: str, description: str, tags: list[str], user: str | None = None, stars: int = 0,
-           readme: str | None = None) -> AddonDetails:
+           readme: str | None = None, description_html: str | None = None, pre_wrap: bool = False) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
         "anki_web": {
@@ -36,7 +36,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
             "branches": [{"min_version": anki_version.rstrip("~"), "max_version": "+", "updated": update_date,
                           "min_point_version": to_point(anki_version), "max_version_kind": "open"}],
             "links": [{"url": f"https://example.com/{addon_id}", "section": "description", "count": 1,
-                       "texts": ["site"]}], "description_language": "en",
+                       "texts": ["site"]}], "description_language": "en", "description_pre_wrap": pre_wrap,
         },
         "github": {
             "user": user, "repo": title.lower().replace(" ", "-"), "stars": stars, "license": "MIT",
@@ -45,6 +45,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
         } if user else None,
         "ai": {"summary": summary, "tags": tags},
         "description": description,
+        "description_html": description_html,
         "readme": readme,
     }
     return AddonDetails.model_validate(record)
@@ -60,10 +61,13 @@ def latest_addons() -> list[AddonDetails]:
                       '<iframe src="https://evil.org"></iframe><style>body{display:none}</style>'),
         _addon(OCCLUSION, "Image Occlusion Plus", likes=298, dislikes=2, update_date="2026-08-01",
                anki_version="2.1.66~", summary="Creates image occlusion cards.", description="Hide parts of an image.",
-               tags=["image-occlusion"], user="bob", stars=500),
+               tags=["image-occlusion"], user="bob", stars=500,
+               description_html='<h2>Occlusion</h2><p><img src="https://example.com/o.png" width="900"></p>'
+                                '<p><a href="https://example.com/docs">docs</a><script>alert(4)</script>'
+                                '<a href="javascript:alert(5)" onclick="alert(6)">js</a></p>'),
         _addon(HEATMAP, "Review Heatmap", likes=78, dislikes=2, update_date="2024-01-10", anki_version="2.1.20~",
                summary="Heatmap of reviews.", description="Heatmap of review history.",
-               tags=["statistics", "obsolete"]),
+               tags=["statistics", "obsolete"], description_html="Line one\nLine two", pre_wrap=True),
     ]
 
 

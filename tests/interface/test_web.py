@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from mcp.server.mcpserver import MCPServer
 
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
+from anki_addons_catalog.application.catalog import CatalogService
 from anki_addons_catalog.bootstrap import create_app
 from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, Usage
@@ -89,6 +90,35 @@ def test_addon_page_renders_readme_raw_html(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI}").text
     assert ('<p align="center"><a href="https://y.org" target="_blank" rel="nofollow noopener noreferrer">'
             '<img src="https://github.com/alice/kanji-helper/raw/HEAD/img/b.png"></a></p>') in html
+
+
+def test_addon_page_renders_description_html_safely(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{OCCLUSION}").text
+    assert '<article class="description-html"><h2>Occlusion</h2>' in html
+    assert '<img src="https://example.com/o.png" width="900">' in html
+    assert 'href="https://example.com/docs" target="_blank" rel="nofollow noopener noreferrer"' in html
+    for hostile in ("alert(4)", "alert(5)", "alert(6)", "javascript:"):
+        assert hostile not in html
+    assert "Hide parts of an image." not in html
+
+
+def test_addon_page_keeps_line_breaks_of_pre_wrap_description(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{HEATMAP}").text
+    assert '<article class="description-html pre-wrap">Line one\nLine two</article>' in html
+
+
+def test_addon_page_falls_back_to_plain_description(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def no_html(self: CatalogService, addon_id: int) -> None:
+        return None
+
+    monkeypatch.setattr(CatalogService, "description_html", no_html)
+    html = make_client().get(f"/addon/{OCCLUSION}").text
+    assert '<article class="description">Hide parts of an image.</article>' in html
+
+
+def test_addon_page_prefers_readme_over_description(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert "<h2>README</h2>" in html and "<h2>Description</h2>" not in html
 
 
 def test_addon_page_resolves_relative_readme_links_against_github(make_client: Any) -> None:

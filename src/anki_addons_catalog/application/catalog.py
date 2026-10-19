@@ -63,6 +63,13 @@ class CatalogService:
         description: str | None = text.get("text")
         return description
 
+    async def description_html(self, addon_id: int) -> str | None:
+        """The author's HTML, not sanitized."""
+        text: dict[str, Any] = await self.call("get_addon_description", addon_id=addon_id, max_chars=60000,
+                                               format="html")
+        html: str | None = text.get("text")
+        return html
+
     async def maintenance(self, addon_id: int) -> dict[str, Any]:
         report: dict[str, Any] = await self.call("assess_maintenance", addon_id=addon_id)
         return report

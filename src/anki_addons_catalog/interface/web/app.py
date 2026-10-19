@@ -26,7 +26,13 @@ from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
 from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AnswerEvent, SearchFilters
 from anki_addons_catalog.domain.ports import CatalogPort
-from anki_addons_catalog.interface.web.rendering import compact_number, human_date, render_markdown, render_readme
+from anki_addons_catalog.interface.web.rendering import (
+    compact_number,
+    human_date,
+    render_description,
+    render_markdown,
+    render_readme,
+)
 from anki_addons_catalog.interface.web.security import PASS_COOKIE, HumanCheck, client_ip
 
 log = logging.getLogger(__name__)
@@ -94,6 +100,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters["markdown"] = render_markdown
     templates.env.filters["readme"] = render_readme
+    templates.env.filters["description"] = render_description
     templates.env.filters["compact"] = compact_number
     templates.env.filters["human_date"] = human_date
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
@@ -252,15 +259,16 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def addon(request: Request, addon_id: int, anki: str = "") -> HTMLResponse:
         view("addon")
         details = await ctx.catalog.addon(addon_id)
-        maintenance, similar, readme, description = await asyncio.gather(
+        maintenance, similar, readme, description_html, description = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
-            ctx.catalog.description(addon_id), return_exceptions=True)
+            ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id), return_exceptions=True)
         anki = anki.strip()[:20]
         compatibility = await ctx.catalog.compatibility(addon_id, anki) if anki else None
         return await page(request, "addon.html", a=details,
                     maintenance=None if isinstance(maintenance, BaseException) else maintenance,
                     similar=[] if isinstance(similar, BaseException) else similar,
                     readme=None if isinstance(readme, BaseException) else readme,
+                    description_html=None if isinstance(description_html, BaseException) else description_html,
                     description=None if isinstance(description, BaseException) else description,
                     anki=anki, compatibility=compatibility)
 

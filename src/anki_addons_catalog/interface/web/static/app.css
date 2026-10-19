@@ -43,10 +43,10 @@ a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
 .facts article { margin: 0; }
 .facts dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
 .facts dd { margin: 0; }
-.readme { overflow-x: auto; }
-.readme img { max-width: 100%; }
-.readme [align=center] { text-align: center; }
-.description { white-space: pre-wrap; }
+.readme, .description-html { overflow-x: auto; }
+.readme img, .description-html img { max-width: 100%; height: auto; }
+.readme [align=center], .description-html [align=center] { text-align: center; }
+.description, .pre-wrap { white-space: pre-wrap; }
 .summary footer { margin-top: .5rem; }
 
 mark.label-active, mark.verdict-supported { background: #bbf7d0; color: #14532d; }

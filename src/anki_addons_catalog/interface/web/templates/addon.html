@@ -88,10 +88,14 @@
   <h2>README</h2>
   <article class="readme">{{ readme | readme(gh.user if gh else none, gh.repo if gh else none) | safe }}</article>
 </section>
-{% elif description %}
+{% elif description_html or description %}
 <section>
   <h2>Description</h2>
+  {% if description_html %}
+  <article class="description-html{% if w.description_pre_wrap %} pre-wrap{% endif %}">{{ description_html | description | safe }}</article>
+  {% else %}
   <article class="description">{{ description }}</article>
+  {% endif %}
 </section>
 {% endif %}
 {% endblock %}
