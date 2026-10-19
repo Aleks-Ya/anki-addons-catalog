@@ -52,7 +52,7 @@ dev = [
 
 [tool.uv.sources]
 # search_addons with every filter_addons filter is not on PyPI yet; this is the commit the MCP Space runs
-anki-addons-mcp = { git = "https://github.com/Aleks-Ya/anki-addons-mcp", rev = "cdf4f2b64896c797888959ff0e80521fa3b426be" }
+anki-addons-mcp = { git = "https://github.com/Aleks-Ya/anki-addons-mcp", rev = "7e9fb38a499f7d3553399ee5c10389ab6151f2d2" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
