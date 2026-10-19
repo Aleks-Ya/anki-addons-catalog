@@ -19,7 +19,8 @@ git rev-parse --abbrev-ref HEAD
 ```
 
 - If `git status` prints **anything**, stop. Do not push. Report the uncommitted files and ask whether to commit
-  them (and how). Never commit on the user's behalf here unless they explicitly ask.
+  them (and how). Apart from the dependency upgrade in step 2, never commit on the user's behalf unless they
+  explicitly ask.
 - If the branch is not `main`, stop and ask the user before pushing.
 
 ## 2. Upgrade dependencies and run checks locally
@@ -33,8 +34,8 @@ uv run mypy
 uv run pytest
 ```
 
-- If `uv lock --upgrade` changes `uv.lock`, that change must be committed: CI runs `uv sync --locked` and fails
-  on a stale lock. Ask the user before committing it.
+- If `uv lock --upgrade` changes `uv.lock` and the checks below pass, commit it without asking, as its own commit
+  `Upgrade dependencies` (only `uv.lock`). CI runs `uv sync --locked` and fails on a stale lock.
 - `uv lock --upgrade` does not move `anki-addons-mcp`: it is pinned to a git commit in `pyproject.toml`
   (`[tool.uv.sources]`, `rev = ...`). Compare the pin with the MCP repo's `main`:
   ```bash
