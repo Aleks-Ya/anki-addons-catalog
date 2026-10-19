@@ -89,8 +89,8 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
    git push space main
    ```
 
-Step 3 for an existing Space is automated by the skill `/deploy`: it pushes `main` after a green CI run, waits
-for the rebuild and smoke-tests the site. CI does not deploy.
+Step 3 for an existing Space is automated by the skill `/deploy`: it offers the development head of `main` and the
+latest release, pushes the chosen commit after a green CI run, waits for the rebuild and smoke-tests the site. CI does not deploy.
 
 Run one replica: the rate limiter and the caches live in memory and reset on restart.
 

@@ -1,14 +1,14 @@
 ---
 name: release
-description: Bump the version for a release — show the current version, offer the exact major, minor and patch versions to choose from, bump to the chosen one with bump-my-version and commit. Does not tag, push or deploy. Use when the user says "release", "/release", or asks to bump the version.
+description: Bump the version for a release — show the current version, offer the exact major, minor and patch versions to choose from, bump to the chosen one with bump-my-version and commit, then switch to the next development version (`.dev0`) in a second commit. Does not tag, push or deploy. Use when the user says "release", "/release", or asks to bump the version.
 allowed-tools: Bash(git *) Bash(uv run bump-my-version *) Bash(python3 .claude/skills/release/versions.py)
 disable-model-invocation: true
 ---
 
 # release
 
-Bump the version (README-DEV.md → "Release a new version") to a major, minor or patch release the user picks, and
-commit it. The version lives in `src/anki_addons_catalog/__init__.py` (`__version__`) and in
+Bump the version (README-DEV.md → "Release a new version") to a major, minor or patch release the user picks,
+commit it, then switch to the next development version and commit that too. The version lives in `src/anki_addons_catalog/__init__.py` (`__version__`) and in
 `.bumpversion.toml` (`current_version`); bump-my-version updates both and commits (`commit = true`,
 `tag = false`). This skill does not tag, push or deploy: run `/push` and `/deploy` afterwards. Work through the
 steps in order; stop and report if a step can't be completed.
@@ -68,6 +68,32 @@ grep -n __version__ src/anki_addons_catalog/__init__.py
 
 The commit must touch only those two files, and the tree must be clean.
 
+## 5. Switch to the next development version
+
+Right after the release commit, bump to the next minor `.dev0` version, as README-DEV.md does (`0.3.1` gives
+`0.4.0.dev0`). Dry-run first, then bump for real:
+
+```bash
+uv run bump-my-version bump minor --dry-run -v
+uv run bump-my-version bump minor
+```
+
+The dry run must show the same two files changing to `<next minor>.dev0` and the commit message
+`Bump version: <version> → <next minor>.dev0`. The warning that the current version doesn't match the last tagged
+version is expected here too, since this skill does not tag. If anything else looks wrong, stop and report.
+
+Then check the result:
+
+```bash
+git log -2 --stat --format='%h %s'
+git status --porcelain
+grep -n __version__ src/anki_addons_catalog/__init__.py
+```
+
+The release commit and the dev commit must each touch only those two files, `__version__` must end in `.dev0`,
+and the tree must be clean.
+
 ## Done
 
-Report the old and new versions and the commit SHA. End with: "Push with `/push`, then deploy with `/deploy`."
+Report the old version, the release version and its commit SHA, and the new development version and its commit
+SHA. End with: "Push with `/push`, then deploy with `/deploy`."
