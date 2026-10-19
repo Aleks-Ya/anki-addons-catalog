@@ -53,7 +53,10 @@ def latest_addons() -> list[AddonDetails]:
     return [
         _addon(KANJI, "Kanji Helper", rating=120, update_date="2026-08-20", anki_version="25.02~",
                summary="Shows kanji stroke order.", description="Kanji stroke order and readings.", tags=["dictionary"],
-               user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)"),
+               user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)\n\n"
+                      '<p align="center"><a href="https://y.org" target="_blank"><img src="img/b.png"></a></p>\n\n'
+                      '<img src="x.png" onerror="alert(2)"><a href="javascript:alert(3)">js</a>\n\n'
+                      '<iframe src="https://evil.org"></iframe><style>body{display:none}</style>'),
         _addon(OCCLUSION, "Image Occlusion Plus", rating=300, update_date="2026-08-01", anki_version="2.1.66~",
                summary="Creates image occlusion cards.", description="Hide parts of an image.", tags=["image-occlusion"], user="bob",
                stars=500),

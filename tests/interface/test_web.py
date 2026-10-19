@@ -74,7 +74,15 @@ def test_addon_page_renders_readme_safely(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI}").text
     assert "<h1>Kanji Helper</h1>" in html
     assert "<script>alert(1)</script>" not in html
-    assert 'href="https://x.org" rel="nofollow noopener noreferrer" target="_blank"' in html
+    assert 'href="https://x.org" target="_blank" rel="nofollow noopener noreferrer"' in html
+    for hostile in ("alert(2)", "alert(3)", "javascript:", "<iframe", "evil.org", "display:none"):
+        assert hostile not in html
+
+
+def test_addon_page_renders_readme_raw_html(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert ('<p align="center"><a href="https://y.org" target="_blank" rel="nofollow noopener noreferrer">'
+            '<img src="https://github.com/alice/kanji-helper/raw/HEAD/img/b.png"></a></p>') in html
 
 
 def test_addon_page_resolves_relative_readme_links_against_github(make_client: Any) -> None:

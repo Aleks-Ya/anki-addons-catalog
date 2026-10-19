@@ -45,6 +45,7 @@ a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
 .facts dd { margin: 0; }
 .readme { overflow-x: auto; }
 .readme img { max-width: 100%; }
+.readme [align=center] { text-align: center; }
 .description { white-space: pre-wrap; }
 .summary footer { margin-top: .5rem; }
 
