@@ -71,23 +71,14 @@ rejected for any other reason, stop and report.
 
 ## 4. Wait for the Space to build and start
 
-Pushing triggers a Docker rebuild. Poll the runtime API every 20 s, for up to 15 min, until the Space runs the
-pushed commit. Run the poll as a single `python3` command (no shell `for`/`sleep` loop, which needs extra
-permission), with a Bash timeout of at least 960000 ms:
+Pushing triggers a Docker rebuild. Wait until the Space runs the pushed commit, with a Bash timeout of at least
+960000 ms. The script polls the runtime API every 20 s for up to 15 min and prints each stage:
 
 ```bash
-python3 -c '
-import json, sys, time, urllib.request
-url = "https://huggingface.co/api/spaces/Ya-Alex/anki-addons-catalog/runtime"
-for _ in range(45):
-    runtime = json.load(urllib.request.urlopen(url))
-    stage, sha = runtime["stage"], runtime.get("sha")
-    print(time.strftime("%H:%M:%S"), stage, sha, flush=True)
-    if (stage == "RUNNING" and sha == sys.argv[1]) or stage.endswith("ERROR"):
-        break
-    time.sleep(20)
-' "$(git rev-parse HEAD)"
+python3 .claude/skills/deploy/wait_space.py "$(git rev-parse HEAD)"
 ```
+
+It exits 0 when the Space is `RUNNING` on that sha, 1 on an error stage and 2 on timeout.
 
 - `BUILDING`, `RUNNING_BUILDING`, `APP_STARTING` (or the old sha still `RUNNING`): keep waiting.
 - `RUNNING` with `sha` equal to `git rev-parse HEAD`: continue to step 5.
