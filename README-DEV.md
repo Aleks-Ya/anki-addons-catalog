@@ -164,7 +164,9 @@ The catalog sends `HF_TOKEN` with every request to the MCP Space. HuggingFace ra
 address, and a Space shares its outgoing IP with other Spaces, so anonymous calls often fail with HTTP 429 (the site
 then shows "Catalog temporarily unavailable"). With a token the limit is counted per account instead. Any token
 works since the MCP Space is public: create a fine-grained token with no permissions at
-https://huggingface.co/settings/tokens. The startup log says "MCP requests: authenticated with HF_TOKEN".
+https://huggingface.co/settings/tokens. To a `*.hf.space` URL the token goes in the `X-HF-Authorization` header,
+which the Space proxy reads (as the Gradio client does); a plain `Authorization` header goes to the app, and the
+proxy may count the request as anonymous. The startup log says "MCP requests: authenticated with HF_TOKEN (X-HF-Authorization)".
 
 The catalog also pings the MCP Space's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that it does not go
 to sleep. With HF Pro you can also set a longer sleep time for that Space in its settings.

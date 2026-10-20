@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import anthropic
 from fastapi import FastAPI
@@ -25,6 +26,17 @@ def _secret(value: object) -> str | None:
     return value.get_secret_value() if value is not None else None  # type: ignore[attr-defined]
 
 
+def mcp_auth_headers(url: str, hf_token: str | None) -> dict[str, str]:
+    """The HF token header for the MCP endpoint. The HF Space proxy reads (and strips) `X-HF-Authorization`, as the
+    Gradio client sends it; a plain `Authorization` header goes to the app, and the proxy counts the request as
+    anonymous (rate-limited per shared IP). Other hosts (a local MCP server) get `Authorization`."""
+    if not hf_token:
+        return {}
+    host = urlsplit(url).hostname or ""
+    header = "X-HF-Authorization" if host.endswith(".hf.space") else "Authorization"
+    return {header: f"Bearer {hf_token}"}
+
+
 def create_llm(settings: Settings) -> LlmPort:
     client = anthropic.AsyncAnthropic(api_key=_secret(settings.anthropic_api_key))  # None: ANTHROPIC_API_KEY
     fallbacks = settings.fallbacks_enabled and settings.model_profile().fallbacks
@@ -44,10 +56,9 @@ def create_usage(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> Usag
 def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:
     mcp = None
     if catalog is None:
-        hf_token = _secret(settings.hf_token)
-        log.info("MCP requests: %s", "authenticated with HF_TOKEN" if hf_token else "anonymous")
-        mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds,
-                         headers={"Authorization": f"Bearer {hf_token}"} if hf_token else None)
+        headers = mcp_auth_headers(settings.mcp_url, _secret(settings.hf_token))
+        log.info("MCP requests: %s", f"authenticated with HF_TOKEN ({next(iter(headers))})" if headers else "anonymous")
+        mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds, headers=headers)
     port: CatalogPort = catalog or mcp  # type: ignore[assignment]
     catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
     profile = settings.model_profile()

@@ -15,6 +15,8 @@ from anki_addons_catalog.domain.models import ToolResult, ToolSpec
 
 log = logging.getLogger(__name__)
 
+RATE_LIMIT_HEADERS = ("RateLimit", "RateLimit-Policy", "Retry-After")  # HF's 429s name the bucket, quota and reset
+
 
 def _describe(error: BaseException) -> str:
     """The innermost errors of an exception group (anyio wraps transport errors in TaskGroup groups)."""
@@ -76,7 +78,8 @@ class McpCatalog:
     """CatalogPort over one long-lived MCP client session, reconnected when a call fails.
 
     `server` is the MCP endpoint URL, or an in-process MCPServer in tests. `headers` go with every HTTP request
-    (an HF token: anonymous requests from a Space share its IP's rate limit and get HTTP 429).
+    (the HF token, see `bootstrap.mcp_auth_headers`: anonymous requests from a Space share its IP's rate limit and
+    get HTTP 429).
     """
 
     def __init__(self, server: str | MCPServer, timeout_seconds: float = 120.0,
@@ -145,7 +148,9 @@ class McpCatalog:
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as http:
                 response = await http.post(self._server, json=request, headers=headers)
-            return f" (probe: HTTP {response.status_code}: {response.text[:300]!r})"
+            limits = "".join(f", {name}: {response.headers[name]}" for name in RATE_LIMIT_HEADERS
+                             if name in response.headers)
+            return f" (probe: HTTP {response.status_code}{limits}: {response.text[:300]!r})"
         except httpx.HTTPError as e:
             return f" (probe: {_describe(e)})"
 
