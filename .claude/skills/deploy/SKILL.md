@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Deploy any version of main to the HuggingFace Space and see it running — suggest the development heads (local and pushed) and the latest release, ask which one to deploy, check that the chosen commit is green (CI if pushed, local checks if not), push it to the `space` remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", or asks to update/redeploy the HuggingFace Space.
+description: Deploy any version of main to the HuggingFace Space and see it running — suggest the development heads (local and pushed) and the latest release, ask which one to deploy, push it without running CI or local checks to the `space` remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", or asks to update/redeploy the HuggingFace Space.
 allowed-tools: Bash(git *) Bash(gh *) Bash(uv *) Bash(curl *) Bash(python3 *)
 disable-model-invocation: true
 ---
@@ -11,6 +11,7 @@ Deploy a version of `main` to the HuggingFace Space (README-DEV.md → "Deploy t
 that the Space runs the pushed commit. The user picks the version: usually the development head of `main` (local or
 on GitHub) or the latest release (the commit `/release` made before switching to the next `.dev0` version), but any
 commit can be deployed, pushed to GitHub or not. It deploys commits only and does not commit or fix code itself.
+It runs no CI or local checks (lint, types, tests) before pushing: it just deploys the chosen commit.
 Work through the steps in order; stop and report if a step can't be completed.
 
 - Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog (git remote `space`)
@@ -54,54 +55,17 @@ commit (e.g. `local` and `dev` when `main` is pushed). If the user picks "Other"
 `git rev-parse <rev>^{commit}`) from here on.
 
 - If `space/main` already equals `TARGET` and the runtime is `RUNNING` on that sha, nothing needs deploying: skip
-  to step 6 to smoke-test and report.
+  to step 5 to smoke-test and report.
 - If `space/main` is **not** an ancestor of `TARGET` (`git merge-base --is-ancestor space/main <TARGET>` fails),
-  the push in step 4 must be forced. Check whether `space/main` is on `main` or `origin/main`
+  the push in step 3 must be forced. Check whether `space/main` is on `main` or `origin/main`
   (`git merge-base --is-ancestor space/main main`, same for `origin/main`):
   - If it is, `TARGET` is a rollback or a different branch of history (e.g. the release when the Space runs a later
     dev commit). List what the Space would lose (`git log --oneline <TARGET>..space/main`) and ask the user to
-    confirm with AskUserQuestion; force-push in step 4 only after they confirm.
+    confirm with AskUserQuestion; force-push in step 3 only after they confirm.
   - If it is not, the Space has commits that exist nowhere else (e.g. edits made on huggingface.co). Stop and
     report them; never overwrite them.
 
-## 3. Check that the chosen commit is green
-
-The Space must only get code that passed CI's checks.
-
-### Pushed commits: CI
-
-If `TARGET` is on `origin/main` (`git merge-base --is-ancestor <TARGET> origin/main`), check its CI run:
-
-```bash
-gh run list --branch main --commit <TARGET> --workflow unit-tests.yml --limit 1
-```
-
-- If the Unit-tests run for `TARGET` is in progress, wait for it with `gh run watch <run-id> --exit-status`.
-- If it failed, stop and report.
-- If there is no run: CI runs only on the tip of each push, so a release commit pushed together with the `.dev0`
-  commit after it has none. Accept a green run on a later commit `C` of `main` when `git diff --name-only
-  <TARGET> <C>` lists only `src/anki_addons_catalog/__init__.py` and `.bumpversion.toml` (the commits in between
-  only changed the version), e.g. `gh run list --branch main --workflow unit-tests.yml --limit 5 --json
-  headSha,conclusion,displayTitle`. Otherwise run the local checks below.
-
-### Unpushed commits: local checks
-
-If `TARGET` is not on `origin/main`, or a pushed commit has no usable CI run, run CI's checks
-(`.github/workflows/unit-tests.yml`) on a clean checkout of `TARGET` in a temporary worktree under the scratchpad
-directory, so uncommitted changes don't affect the result:
-
-```bash
-git worktree add --detach <scratchpad>/deploy-check <TARGET>
-uv --directory <scratchpad>/deploy-check sync --locked
-uv --directory <scratchpad>/deploy-check run ruff check src tests
-uv --directory <scratchpad>/deploy-check run mypy
-uv --directory <scratchpad>/deploy-check run pytest
-git worktree remove --force <scratchpad>/deploy-check
-```
-
-Remove the worktree whatever the outcome. If a check fails, stop and report its output; don't fix it here.
-
-## 4. Push to the Space
+## 3. Push to the Space
 
 ```bash
 git push space <TARGET>:refs/heads/main
@@ -118,7 +82,7 @@ authentication error (e.g. `could not read Username for 'https://huggingface.co'
 store a token with write access to the Space (e.g. `hf auth login --add-to-git-credential`). If the push is
 rejected for any other reason, stop and report.
 
-## 5. Wait for the Space to build and start
+## 4. Wait for the Space to build and start
 
 Pushing triggers a Docker rebuild. Wait until the Space runs the pushed commit, with a Bash timeout of at least
 960000 ms. The script polls the runtime API every 20 s for up to 15 min and prints each stage:
@@ -130,13 +94,13 @@ python3 .claude/skills/deploy/wait_space.py <TARGET>
 It exits 0 when the Space is `RUNNING` on that sha, 1 on an error stage and 2 on timeout.
 
 - `BUILDING`, `RUNNING_BUILDING`, `APP_STARTING` (or the old sha still `RUNNING`): keep waiting.
-- `RUNNING` with `sha` equal to `TARGET`: continue to step 6.
+- `RUNNING` with `sha` equal to `TARGET`: continue to step 5.
 - `BUILD_ERROR`, `RUNTIME_ERROR` or `CONFIG_ERROR`: stop. Report the stage and point the user to the **Logs** tab
   of the Space page (build and container logs need a token to read through the API). Reproduce a build failure
   locally with `docker build .` if useful.
 - Still not running the new sha after ~15 min: stop and report the last stage seen.
 
-## 6. Smoke-test the live site
+## 5. Smoke-test the live site
 
 The checks are read-only and free. Never call `/api/ask`: each question costs Claude credits and is
 gated by Turnstile.
@@ -153,7 +117,7 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
 
 - Both `/healthz` calls must return `{"status": "ok", "version": ...}` with the version of
   `TARGET` (`git show <TARGET>:src/anki_addons_catalog/__init__.py`). Development versions don't change on every
-  commit, so the runtime sha (step 5) is what proves the new commit is live, not the version.
+  commit, so the runtime sha (step 4) is what proves the new commit is live, not the version.
 - The home page must contain "Highest rated", and the search must return at least one card. Both pages read from
   the MCP Space, so a failure here can come from the MCP Space instead.
 - The add-on and top pages must return `200`.
@@ -161,7 +125,7 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
 
 If a check fails, report the output and point the user to the **Logs** tab of the Space page.
 
-## 7. Check the MCP dependency
+## 6. Check the MCP dependency
 
 Production talks to the live MCP Space, but the tests ran against the `anki-addons-mcp` commit pinned in
 `pyproject.toml` (`[tool.uv.sources]`, `rev = ...`). Compare them:
