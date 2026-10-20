@@ -86,6 +86,7 @@ def test_fork_page_links_its_parent(make_client: Any) -> None:
 
 def test_parent_page_lists_its_forks(make_client: Any) -> None:
     html = make_client().get(f"/addon/{HEATMAP}").text
+    assert '<section id="forks">' in html
     forks = html.split("<h2>Forks</h2>", 1)[1].split("</section>", 1)[0]
     assert f'href="/addon/{FORK}"' in forks and 'class="fork-of"' not in html
 
@@ -93,7 +94,8 @@ def test_parent_page_lists_its_forks(make_client: Any) -> None:
 def test_cards_mark_forks(make_client: Any) -> None:
     html = make_client().get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert '<mark title="Forked from another addon of the catalog">fork</mark>' in html
-    assert '<span title="Addons of the catalog forked from this one">1 fork</span>' in html
+    assert (f'<a class="badge" href="/addon/{HEATMAP}#forks" title="Addons of the catalog forked from this one">'
+            '<mark>has 1 fork →</mark></a>') in html
     assert f'href="/addon/{FORK}"' not in make_client().get("/search", params={"nofork": "1"}).text
 
 

@@ -23,6 +23,7 @@ h2 small, h3 small { font-size: .8rem; font-weight: normal; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--cards-min), 100%), 1fr)); gap: 1rem; }
 .cards .card { margin: 0; display: flex; flex-direction: column; }
 .cards .card header { margin-bottom: .5rem; }
+.cards .card header a.badge { text-decoration: none; }
 .cards .card .summary { flex: 1; font-size: .9rem; }
 .tags { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .5rem; }
 .tag { font-size: .75rem; padding: .05rem .5rem; border-radius: 1rem; border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color); text-decoration: none; }
