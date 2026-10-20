@@ -8,6 +8,7 @@
   <h1>{{ w.title }}</h1>
   <p>AnkiWeb addon <code>{{ a.id }}</code>
     {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
+  {% if parents %}<p class="fork-of">Fork of {% for p, evidence in parents %}<a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 </hgroup>
 {% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
 {% if a.ai and a.ai.tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in a.ai.tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}
@@ -40,6 +41,7 @@
     {% if gh and gh.user %}
     <dl>
       <dt>Repository</dt><dd><a href="{{ gh.url }}" target="_blank" rel="noopener">{{ gh.user }}/{{ gh.repo }}</a> · <a href="/author/{{ gh.user }}">more by {{ gh.user }}</a></dd>
+      {% if gh.fork_source %}<dt>Fork of</dt><dd><a href="https://github.com/{{ gh.fork_source }}" target="_blank" rel="noopener">{{ gh.fork_source }}</a></dd>{% endif %}
       <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.forks is not none %} · forks {{ gh.forks }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}</dd>
       <dt>Last commit</dt><dd>{{ (gh.last_commit or "unknown")[:10] }}</dd>
       {% if gh.license %}<dt>License</dt><dd>{{ gh.license }}</dd>{% endif %}
@@ -75,6 +77,15 @@
     <p aria-busy="true">Loading…</p>
   </details>
 </section>
+
+{% if forks %}
+<section>
+  <h2>Forks</h2>
+  <p>Addons forked from this one; one of them may carry it on.
+    <small>Fork detection is incomplete.</small></p>
+  {% with cards=forks %}{% include "_cards.html" %}{% endwith %}
+</section>
+{% endif %}
 
 {% if similar %}
 <section>

@@ -110,6 +110,11 @@ class CatalogService:
         page: dict[str, Any] = await self.call("filter_addons", **args)
         return page
 
+    async def forks(self, addon_id: int, limit: int = 30) -> dict[str, Any]:
+        """Addons forked from this one, best rated first."""
+        page: dict[str, Any] = await self.call("filter_addons", fork_of=addon_id, sort_by="rating", limit=limit)
+        return page
+
     async def changes(self, limit: int = 30) -> dict[str, Any]:
         diff: dict[str, Any] = await self.call("diff_snapshots", limit=limit)
         return diff

@@ -20,6 +20,7 @@
       <label><input type="checkbox" name="active" value="1" {% if filters.not_archived %}checked{% endif %}> GitHub repo not archived</label>
       <label><input type="checkbox" name="github" value="1" {% if filters.has_github %}checked{% endif %}> Has a GitHub repo</label>
       <label><input type="checkbox" name="nopaid" value="1" {% if filters.hide_paid %}checked{% endif %}> Hide paid</label>
+      <label><input type="checkbox" name="nofork" value="1" {% if filters.hide_forks %}checked{% endif %}> Hide forks</label>
       <label><input type="checkbox" name="obsolete" value="1" {% if filters.show_obsolete %}checked{% endif %}> Show obsolete</label>
     </fieldset>
     <fieldset>

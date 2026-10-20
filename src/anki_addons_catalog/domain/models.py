@@ -34,6 +34,8 @@ class AddonCard(BaseModel):
     github_stars: int | None = None
     github_archived: bool | None = None
     license: str | None = None
+    forked_from: list[int] = []  # addons this one was forked from
+    forks: list[int] = []  # addons forked from this one
 
     @classmethod
     def from_details(cls, details: dict[str, Any]) -> "AddonCard":
@@ -47,6 +49,7 @@ class AddonCard(BaseModel):
             update_date=anki_web.get("update_date"), anki_version=anki_web.get("anki_version"),
             ai_summary=ai.get("summary"), ai_tags=ai.get("tags") or [], github_user=github.get("user"), github_repo=github.get("repo"),
             github_stars=github.get("stars"), github_archived=github.get("archived"), license=github.get("license"),
+            forked_from=[r["id"] for r in details.get("forked_from") or []], forks=details.get("forks") or [],
         )
 
 
@@ -110,6 +113,7 @@ class SearchFilters(BaseModel):
     tags: list[str] = []
     show_obsolete: bool = False
     hide_paid: bool = False
+    hide_forks: bool = False
     recent: bool = False  # updated on AnkiWeb in the last two years
     not_archived: bool = False
     has_github: bool = False
@@ -124,6 +128,7 @@ class SearchFilters(BaseModel):
         rating = params.get("rating", "")
         return cls(anki=anki if _ANKI_VERSION.fullmatch(anki) else None, tags=tags[:MAX_TAGS],
                    show_obsolete=params.get("obsolete") == "1", hide_paid=params.get("nopaid") == "1",
+                   hide_forks=params.get("nofork") == "1",
                    recent=params.get("recent") == "1", not_archived=params.get("active") == "1",
                    has_github=params.get("github") == "1",
                    min_rating=int(rating) if rating.isdigit() and int(rating) in MIN_RATINGS else None,
@@ -133,7 +138,7 @@ class SearchFilters(BaseModel):
         """The URL query parameters, the inverse of `parse` (defaults are left out)."""
         items: list[tuple[str, str]] = [("anki", self.anki)] if self.anki else []
         items += [("tag", t) for t in self.tags]
-        flags = {"obsolete": self.show_obsolete, "nopaid": self.hide_paid, "recent": self.recent,
+        flags = {"obsolete": self.show_obsolete, "nopaid": self.hide_paid, "nofork": self.hide_forks, "recent": self.recent,
                  "active": self.not_archived, "github": self.has_github}
         items += [(name, "1") for name, on in flags.items() if on]
         if self.min_rating:
@@ -148,7 +153,7 @@ class SearchFilters(BaseModel):
         if self.anki:
             chips.append((f"Anki {self.anki}", self.model_copy(update={"anki": None})))
         chips += [(t, self.model_copy(update={"tags": [x for x in self.tags if x != t]})) for t in self.tags]
-        labels = {"show_obsolete": "Obsolete shown", "hide_paid": "No paid", "recent": "Updated in 2 years",
+        labels = {"show_obsolete": "Obsolete shown", "hide_paid": "No paid", "hide_forks": "No forks", "recent": "Updated in 2 years",
                   "not_archived": "Not archived", "has_github": "On GitHub"}
         chips += [(label, self.model_copy(update={name: False})) for name, label in labels.items()
                   if getattr(self, name)]
@@ -171,6 +176,8 @@ class SearchFilters(BaseModel):
         exclude = ([] if self.show_obsolete else [OBSOLETE_TAG]) + ([PAID_TAG] if self.hide_paid else [])
         if exclude:
             args["exclude_tags"] = exclude
+        if self.hide_forks:
+            args["is_fork"] = False
         if self.recent:
             args["updated_after"] = (today - timedelta(days=RECENT_DAYS)).isoformat()
         if self.not_archived:

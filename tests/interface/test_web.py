@@ -14,7 +14,7 @@ from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, 
 from anki_addons_catalog.interface.web.app import search_url
 from anki_addons_catalog.interface.web.security import PASS_COOKIE
 from tests.conftest import FakeLlm
-from tests.fixtures import HEATMAP, KANJI, OCCLUSION
+from tests.fixtures import FORK, HEATMAP, KANJI, OCCLUSION
 
 
 def settings(**overrides: Any) -> Settings:
@@ -75,6 +75,26 @@ def test_cards_show_votes_and_approval(make_client: Any) -> None:
     html = make_client().get("/").text
     assert "300 votes" in html and "98% approval" in html  # Image Occlusion Plus: 298 likes, 2 dislikes
     assert "<dt>Votes</dt><dd>300 (👍 298 · 👎 2)</dd>" in make_client().get(f"/addon/{OCCLUSION}").text
+
+
+def test_fork_page_links_its_parent(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{FORK}").text
+    assert f'<p class="fork-of">Fork of <a href="/addon/{HEATMAP}">Review Heatmap</a></p>' in html
+    assert '<a href="https://github.com/glutanimate/review-heatmap" target="_blank" rel="noopener">' in html
+    assert "<h2>Forks</h2>" not in html
+
+
+def test_parent_page_lists_its_forks(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{HEATMAP}").text
+    forks = html.split("<h2>Forks</h2>", 1)[1].split("</section>", 1)[0]
+    assert f'href="/addon/{FORK}"' in forks and 'class="fork-of"' not in html
+
+
+def test_cards_mark_forks(make_client: Any) -> None:
+    html = make_client().get("/search", params={"obsolete": "1", "tag": "statistics"}).text
+    assert '<mark title="Forked from another addon of the catalog">fork</mark>' in html
+    assert '<span title="Addons of the catalog forked from this one">1 fork</span>' in html
+    assert f'href="/addon/{FORK}"' not in make_client().get("/search", params={"nofork": "1"}).text
 
 
 def test_addon_page_renders_readme_safely(make_client: Any) -> None:
@@ -189,7 +209,7 @@ def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> No
 def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
     client = make_client()
     html = client.get("/search").text
-    assert "All addons <small>(2)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
+    assert "All addons <small>(3)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
     assert f'href="/addon/{HEATMAP}"' in client.get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
 

@@ -24,7 +24,7 @@ from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, C
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
-from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AnswerEvent, SearchFilters
+from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AddonCard, AnswerEvent, SearchFilters
 from anki_addons_catalog.domain.ports import CatalogPort
 from anki_addons_catalog.interface.web.rendering import (
     compact_number,
@@ -259,9 +259,12 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def addon(request: Request, addon_id: int, anki: str = "") -> HTMLResponse:
         view("addon")
         details = await ctx.catalog.addon(addon_id)
-        maintenance, similar, readme, description_html, description = await asyncio.gather(
+        relations = details.get("forked_from") or []
+        maintenance, similar, readme, description_html, description, forks, *parents = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
-            ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id), return_exceptions=True)
+            ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id),
+            ctx.catalog.forks(addon_id) if details.get("forks") else asyncio.sleep(0, {"items": []}),
+            *(ctx.catalog.addon(r["id"]) for r in relations), return_exceptions=True)
         anki = anki.strip()[:20]
         compatibility = await ctx.catalog.compatibility(addon_id, anki) if anki else None
         return await page(request, "addon.html", a=details,
@@ -270,6 +273,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     readme=None if isinstance(readme, BaseException) else readme,
                     description_html=None if isinstance(description_html, BaseException) else description_html,
                     description=None if isinstance(description, BaseException) else description,
+                    forks=[] if isinstance(forks, BaseException) else forks["items"],
+                    parents=[(AddonCard.from_details(p), r["evidence"]) for p, r in zip(parents, relations, strict=True)
+                             if not isinstance(p, BaseException)],
                     anki=anki, compatibility=compatibility)
 
     @app.get("/addon/{addon_id}/history")

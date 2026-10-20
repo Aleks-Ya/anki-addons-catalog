@@ -50,7 +50,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anki-addons-mcp", git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=7e9fb38a499f7d3553399ee5c10389ab6151f2d2" },
+    { name = "anki-addons-mcp", git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=e7a56f9d0e020ff51ddb753558e1677dfc286ba5" },
     { name = "anyio" },
     { name = "bump-my-version" },
     { name = "mypy" },
@@ -62,7 +62,7 @@ dev = [
 [[package]]
 name = "anki-addons-mcp"
 version = "0.5.0.dev0"
-source = { git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=7e9fb38a499f7d3553399ee5c10389ab6151f2d2#7e9fb38a499f7d3553399ee5c10389ab6151f2d2" }
+source = { git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=e7a56f9d0e020ff51ddb753558e1677dfc286ba5#e7a56f9d0e020ff51ddb753558e1677dfc286ba5" }
 dependencies = [
     { name = "duckdb" },
     { name = "huggingface-hub" },

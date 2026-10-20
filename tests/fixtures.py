@@ -11,6 +11,7 @@ from mcp.server.mcpserver import MCPServer
 KANJI = 1001
 OCCLUSION = 1002
 HEATMAP = 1003
+FORK = 1004
 OLD = date(2026, 8, 1)
 LATEST = date(2026, 9, 1)
 LATEST_CREATED = datetime(2026, 9, 3, 4, 5, tzinfo=UTC)
@@ -25,7 +26,9 @@ TAGS = [
 
 def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date: str, anki_version: str,
            summary: str, description: str, tags: list[str], user: str | None = None, stars: int = 0,
-           readme: str | None = None, description_html: str | None = None, pre_wrap: bool = False) -> AddonDetails:
+           readme: str | None = None, description_html: str | None = None, pre_wrap: bool = False,
+           forked_from: list[dict[str, Any]] | None = None, forks: list[int] | None = None,
+           fork_source: str | None = None) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
         "anki_web": {
@@ -41,8 +44,10 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
         "github": {
             "user": user, "repo": title.lower().replace(" ", "-"), "stars": stars, "license": "MIT",
             "last_commit": update_date + "T10:00:00", "languages": ["Python"], "tests_count": 3, "forks": 1,
-            "open_issues": 0, "topics": [title.split()[0].lower()],
+            "open_issues": 0, "topics": [title.split()[0].lower()], "fork_source": fork_source,
         } if user else None,
+        "forked_from": forked_from or [],
+        "forks": forks or [],
         "ai": {"summary": summary, "tags": tags},
         "description": description,
         "description_html": description_html,
@@ -67,7 +72,11 @@ def latest_addons() -> list[AddonDetails]:
                                 '<a href="javascript:alert(5)" onclick="alert(6)">js</a></p>'),
         _addon(HEATMAP, "Review Heatmap", likes=78, dislikes=2, update_date="2024-01-10", anki_version="2.1.20~",
                summary="Heatmap of reviews.", description="Heatmap of review history.",
-               tags=["statistics", "obsolete"], description_html="Line one\nLine two", pre_wrap=True),
+               tags=["statistics", "obsolete"], description_html="Line one\nLine two", pre_wrap=True, forks=[FORK]),
+        _addon(FORK, "Heatmap Revived", likes=8, dislikes=2, update_date="2026-07-15", anki_version="25.02~",
+               summary="Maintained fork of the review heatmap.", description="Review heatmap for new Anki.",
+               tags=["statistics"], user="carol", stars=5, fork_source="glutanimate/review-heatmap",
+               forked_from=[{"id": HEATMAP, "evidence": "github_fork"}]),
     ]
 
 

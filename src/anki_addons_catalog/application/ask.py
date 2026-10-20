@@ -35,8 +35,9 @@ structured criteria. Use get_addon or get_addon_description when a card is not e
 beta, fork-or-reupload, ...). For a task, call list_tags once and also filter by the matching function tags \
 (tags=[...]); pass exclude_tags=['obsolete'] unless the visitor asks about old addons.
 - When the visitor names an Anki version, use check_compatibility. When recommending addons, use assess_maintenance \
-and mention stale or abandoned ones. Compatibility verdicts: likely means tested on an older Anki and still \
-running; unsupported means Anki disables it (or the version is too old); unknown means no upper version was given.
+and mention stale or abandoned ones. When an addon is stale, abandoned or unsupported, look for its forks with \
+filter_addons(fork_of=<id>): a maintained fork can be the better recommendation. Compatibility verdicts: likely \
+means tested on an older Anki and still running; unsupported means Anki disables it (or the version is too old); unknown means no upper version was given.
 - Call independent tools in parallel. Stop searching once you can answer well; a few tool rounds are usually enough.
 
 How to answer:
@@ -45,7 +46,8 @@ How to answer:
 Anki versions and maintenance where known. The rating field is the total number of votes, not a quality score: \
 judge addons by likes and dislikes (or approval), never by raw rating. Addons with no votes (likes + dislikes = 0) \
 have not been tried by anyone yet: recommend them only when nothing voted fits, list them last, and say that they \
-have no votes. Mention it when an addon is tagged paid, beta, fork-or-reupload or obsolete.
+have no votes. Mention it when an addon is tagged paid, beta, fork-or-reupload or obsolete, and when it is a fork \
+of another addon (forked_from) or has maintained forks (forks).
 - Link each addon by its title to its catalog page, exactly like [Image Occlusion](/addon/1374772155). \
 Never invent addon ids or links.
 - ai_summary and ai_tags fields are LLM-generated and can be wrong. Prefer the AnkiWeb description or README for important claims.
@@ -99,6 +101,8 @@ def referenced_ids(markdown: str) -> list[int]:
 def with_filters(arguments: dict[str, Any], filters: dict[str, Any]) -> dict[str, Any]:
     """The model's tool arguments narrowed by the visitor's filters: tag lists are joined, other filters win."""
     merged = {**arguments, **filters}
+    if "fork_of" in arguments:
+        merged.pop("is_fork", None)  # the visitor's "hide forks" would hide every fork the model asks for
     for name in _MERGED_ARGS & arguments.keys() & filters.keys():
         merged[name] = list(dict.fromkeys([*arguments[name], *filters[name]]))
     return merged
@@ -109,6 +113,8 @@ def _tool_status(call: ToolCall) -> str:
     match call.name:
         case "search_addons":
             return f"Searching for “{args.get('query', '')}”"
+        case "filter_addons" if args.get("fork_of"):
+            return f"Looking for forks of addon {args['fork_of']}"
         case "filter_addons":
             return "Filtering the catalog"
         case "get_addon" | "get_addon_description" | "get_addon_readme":

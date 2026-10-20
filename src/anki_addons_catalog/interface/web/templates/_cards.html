@@ -4,6 +4,7 @@
     <header>
       <a href="/addon/{{ c.id }}"><strong>{{ c.title }}</strong></a>
       {% if c.github_archived %}<mark>archived</mark>{% endif %}
+      {% if c.forked_from %}<mark title="Forked from another addon of the catalog">fork</mark>{% endif %}
     </header>
     {% if c.ai_summary %}<p class="summary" title="AI-generated summary; may contain mistakes">{{ c.ai_summary }}</p>{% endif %}
     {% if c.ai_tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in c.ai_tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}
@@ -12,6 +13,7 @@
       {% if c.approval is not none %}<span title="Lower bound of the share of likes among votes">{{ (c.approval * 100) | round | int }}% approval</span>{% endif %}
       <span title="Likes / dislikes">👍 {{ c.likes | compact }} · 👎 {{ c.dislikes | compact }}</span>
       {% if c.github_stars is not none %}<span title="GitHub stars">⭐ {{ c.github_stars | compact }}</span>{% endif %}
+      {% if c.forks %}<span title="Addons of the catalog forked from this one">{{ c.forks | length }} fork{{ "s" if c.forks | length > 1 }}</span>{% endif %}
       {% if c.anki_version %}<span title="Supported Anki versions">Anki {{ c.anki_version }}</span>{% endif %}
       {% if c.update_date %}<span title="Last update on AnkiWeb">Updated {{ c.update_date[:10] }}</span>{% endif %}
     </footer>

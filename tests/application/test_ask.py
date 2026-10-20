@@ -9,6 +9,7 @@ from anki_addons_catalog.application.ask import (
     FINAL_ROUND_NOTE,
     AskService,
     BudgetExhausted,
+    _tool_status,
     extract_cards,
     normalize_query,
     referenced_ids,
@@ -196,6 +197,16 @@ def test_extract_cards_keeps_ai_tags() -> None:
     assert cards[2].ai_tags == ["cloze", "beta"]
 
 
+def test_extract_cards_keeps_fork_relations() -> None:
+    cards: dict[int, AddonCard] = {}
+    page = {"items": [{"id": 1, "title": "A", "url": "u", "forks": [2]}], "total": 1}
+    details = {"id": 2, "anki_web": {"title": "B", "addon_page_url": "u"},
+               "forked_from": [{"id": 1, "evidence": "ai"}], "forks": []}
+    extract_cards([page, details], cards)
+    assert cards[1].forks == [2] and cards[1].forked_from == []
+    assert cards[2].forked_from == [1] and cards[2].forks == []
+
+
 def test_referenced_ids_in_order_without_duplicates() -> None:
     text = f"[B](/addon/{OCCLUSION}) and [A](https://ankiweb.net/shared/info/{KANJI}) and [B](/addon/{OCCLUSION})"
     assert referenced_ids(text) == [OCCLUSION, KANJI]
@@ -236,3 +247,13 @@ def test_with_filters_joins_tags_and_overrides_the_rest() -> None:
     visitor = {"tags": ["statistics"], "exclude_tags": ["obsolete", "paid"], "min_rating": 50}
     assert with_filters(model, visitor) == {"query": "x", "tags": ["cloze", "statistics"],
                                             "exclude_tags": ["obsolete", "paid"], "min_rating": 50}
+
+
+def test_with_filters_keeps_forks_the_model_asks_for() -> None:
+    assert with_filters({"fork_of": 7}, {"is_fork": False, "min_rating": 50}) == {"fork_of": 7, "min_rating": 50}
+    assert with_filters({"query": "x"}, {"is_fork": False}) == {"query": "x", "is_fork": False}
+
+
+def test_tool_status_for_forks() -> None:
+    assert _tool_status(ToolCall("t", "filter_addons", {"fork_of": 7})) == "Looking for forks of addon 7"
+    assert _tool_status(ToolCall("t", "filter_addons", {"tags": ["cloze"]})) == "Filtering the catalog"
