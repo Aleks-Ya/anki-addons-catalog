@@ -1,9 +1,12 @@
-"""Print the commits /deploy offers: the development head of origin/main and the latest release on it.
+"""Print the commits /deploy offers: the development heads of main and the latest release on them.
 
+local: the tip of the local main branch, which may not be pushed yet.
 dev: the tip of origin/main (usually a .dev0 version right after /release).
-release: the newest commit on origin/main whose __version__ is a plain X.Y.Z (the /release commit; it may be untagged).
+release: the newest commit on main or origin/main whose __version__ is a plain X.Y.Z (the /release commit; it may be
+untagged or unpushed).
 space: what the `space` remote's main is now.
-Each line is "<name>: <sha> <version>", or "<name>: none". Run from the repository root after `git fetch origin space`.
+Each line is "<name>: <sha> <version> <pushed|unpushed>", where pushed means the commit is on origin/main, or
+"<name>: none". Run from the repository root after `git fetch --multiple origin space`.
 """
 import re
 import subprocess
@@ -21,8 +24,8 @@ def version_at(sha: str) -> str:
     return match.group(1) if match else "?"
 
 
-def latest_release(ref: str) -> str | None:
-    for sha in git("log", "--format=%H", ref, "--", VERSION_FILE).splitlines():
+def latest_release(*refs: str) -> str | None:
+    for sha in git("log", "--format=%H", *refs, "--", VERSION_FILE).splitlines():
         if RELEASE.fullmatch(version_at(sha)):
             return sha
     return None
@@ -33,7 +36,13 @@ def ref_sha(ref: str) -> str | None:
     return result.stdout.strip() or None
 
 
+def pushed(sha: str) -> str:
+    on_origin = subprocess.run(["git", "merge-base", "--is-ancestor", sha, "origin/main"], check=False).returncode == 0
+    return "pushed" if on_origin else "unpushed"
+
+
 if __name__ == "__main__":
-    for name, sha in (("dev", ref_sha("origin/main")), ("release", latest_release("origin/main")),
-                      ("space", ref_sha("space/main"))):
-        print(f"{name}: {sha} {version_at(sha)}" if sha else f"{name}: none")
+    refs = [ref for ref in ("main", "origin/main") if ref_sha(ref)]
+    for name, sha in (("local", ref_sha("main")), ("dev", ref_sha("origin/main")),
+                      ("release", latest_release(*refs) if refs else None), ("space", ref_sha("space/main"))):
+        print(f"{name}: {sha} {version_at(sha)} {pushed(sha)}" if sha else f"{name}: none")

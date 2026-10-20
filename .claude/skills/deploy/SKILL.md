@@ -1,17 +1,17 @@
 ---
 name: deploy
-description: Deploy a version of main to the HuggingFace Space and see it running — offer the development head and the latest release to choose from, check that the chosen commit is pushed and green, push it to the `space` remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", or asks to update/redeploy the HuggingFace Space.
-allowed-tools: Bash(git *) Bash(gh *) Bash(curl *) Bash(python3 *)
+description: Deploy any version of main to the HuggingFace Space and see it running — suggest the development heads (local and pushed) and the latest release, ask which one to deploy, check that the chosen commit is green (CI if pushed, local checks if not), push it to the `space` remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", or asks to update/redeploy the HuggingFace Space.
+allowed-tools: Bash(git *) Bash(gh *) Bash(uv *) Bash(curl *) Bash(python3 *)
 disable-model-invocation: true
 ---
 
 # deploy
 
 Deploy a version of `main` to the HuggingFace Space (README-DEV.md → "Deploy to a HuggingFace Space") and verify
-that the Space runs the pushed commit. The user picks the version: usually the development head of `main` or the
-latest release (the commit `/release` made before switching to the next `.dev0` version). This is the follow-on to `/push`: it deploys what is already on GitHub and green,
-and does not commit or fix code itself. Work through the steps in order; stop and report if a step can't be
-completed.
+that the Space runs the pushed commit. The user picks the version: usually the development head of `main` (local or
+on GitHub) or the latest release (the commit `/release` made before switching to the next `.dev0` version), but any
+commit can be deployed, pushed to GitHub or not. It deploys commits only and does not commit or fix code itself.
+Work through the steps in order; stop and report if a step can't be completed.
 
 - Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog (git remote `space`)
 - Site: `https://ya-alex-anki-addons-catalog.hf.space`, custom domain `https://www.anki-addons-catalog.com`,
@@ -20,23 +20,8 @@ completed.
 
 ## 1. Preconditions
 
-Confirm the current branch is `main` and the working tree is clean:
-
-```bash
-git rev-parse --abbrev-ref HEAD
-git status --porcelain
-```
-
-If not on `main`, or there is **any** `git status` output, stop and report. Do not commit on the user's behalf.
-
-Confirm `main` is pushed to GitHub (only pushed commits are offered for deploying):
-
-```bash
-git fetch -q origin
-git rev-parse HEAD origin/main
-```
-
-If `HEAD` differs from `origin/main`, stop and tell the user to run `/push` first.
+Only committed code is deployed. If `git status --porcelain` prints anything, mention that uncommitted changes
+won't be deployed, but don't stop and don't commit on the user's behalf.
 
 Confirm the remote `space` exists (`git remote get-url space`). If it is missing, stop and point the user to the
 setup in README-DEV.md (`git remote add space https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog`).
@@ -44,37 +29,48 @@ setup in README-DEV.md (`git remote add space https://huggingface.co/spaces/Ya-A
 ## 2. Pick the version to deploy
 
 ```bash
-git fetch -q space
+git fetch -q --multiple origin space
 python3 .claude/skills/deploy/candidates.py
 curl -s https://huggingface.co/api/spaces/Ya-Alex/anki-addons-catalog/runtime \
   | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r["stage"], r.get("sha"))'
 ```
 
-The script prints `<name>: <sha> <version>` for `dev` (the tip of `origin/main`), `release` (the newest commit on
-`origin/main` whose `__version__` is a plain `X.Y.Z`; `/release` does not tag, so it may be untagged) and `space`
-(the Space's `main` now). The curl prints the stage and sha the Space actually runs.
+The script prints `<name>: <sha> <version> <pushed|unpushed>` for `local` (the tip of the local `main`), `dev` (the
+tip of `origin/main`), `release` (the newest commit on `main` or `origin/main` whose `__version__` is a plain
+`X.Y.Z`; `/release` does not tag, so it may be untagged) and `space` (the Space's `main` now). `pushed` means the
+commit is on `origin/main`. The curl prints the stage and sha the Space actually runs.
 
 Use AskUserQuestion with what the Space runs in the question text, e.g. "The Space runs 0.3.1 (d6bb48b, RUNNING).
-Which version to deploy?", and one option per candidate, with the exact version and short sha as the label:
+Which version to deploy?", and one option per candidate, with the exact version and short sha as the label and
+whether it is pushed in the description:
 
-- `0.4.0.dev0 (abc1234)` (dev): the latest commit on `main`
+- `0.4.0.dev0 (e5a1cbb)` (local): the latest local commit on `main`, not pushed to GitHub
+- `0.4.0.dev0 (abc1234)` (dev): the latest commit on GitHub's `main`
 - `0.3.1 (d6bb48b)` (release): the latest release
 
-Don't mark a default. Drop a candidate that is `none`; if `dev` and `release` are the same commit, offer it once
-(as a single option alongside "Other"). If the user picks "Other", accept only a commit on `origin/main`
-(`git merge-base --is-ancestor <sha> origin/main`); otherwise ask again. Call the chosen commit `TARGET` (full sha,
-`git rev-parse <sha>`) from here on.
+Don't mark a default. Drop a candidate that is `none`, and offer a commit once when several candidates are the same
+commit (e.g. `local` and `dev` when `main` is pushed). If the user picks "Other", accept any commit
+(`git rev-parse --verify -q <rev>^{commit}`); otherwise ask again. Call the chosen commit `TARGET` (full sha,
+`git rev-parse <rev>^{commit}`) from here on.
 
 - If `space/main` already equals `TARGET` and the runtime is `RUNNING` on that sha, nothing needs deploying: skip
   to step 6 to smoke-test and report.
 - If `space/main` is **not** an ancestor of `TARGET` (`git merge-base --is-ancestor space/main <TARGET>` fails),
-  stop and report; never force-push to the Space. Either the Space has commits that are not on `main` (e.g. edits
-  made on huggingface.co), or `TARGET` is older than what the Space runs (a rollback, e.g. the release when the
-  Space already runs a later dev commit), which needs a manual decision.
+  the push in step 4 must be forced. Check whether `space/main` is on `main` or `origin/main`
+  (`git merge-base --is-ancestor space/main main`, same for `origin/main`):
+  - If it is, `TARGET` is a rollback or a different branch of history (e.g. the release when the Space runs a later
+    dev commit). List what the Space would lose (`git log --oneline <TARGET>..space/main`) and ask the user to
+    confirm with AskUserQuestion; force-push in step 4 only after they confirm.
+  - If it is not, the Space has commits that exist nowhere else (e.g. edits made on huggingface.co). Stop and
+    report them; never overwrite them.
 
-## 3. Check that CI passed for the chosen commit
+## 3. Check that the chosen commit is green
 
-The Space must only get code that passed CI:
+The Space must only get code that passed CI's checks.
+
+### Pushed commits: CI
+
+If `TARGET` is on `origin/main` (`git merge-base --is-ancestor <TARGET> origin/main`), check its CI run:
 
 ```bash
 gh run list --branch main --commit <TARGET> --workflow unit-tests.yml --limit 1
@@ -86,12 +82,35 @@ gh run list --branch main --commit <TARGET> --workflow unit-tests.yml --limit 1
   commit after it has none. Accept a green run on a later commit `C` of `main` when `git diff --name-only
   <TARGET> <C>` lists only `src/anki_addons_catalog/__init__.py` and `.bumpversion.toml` (the commits in between
   only changed the version), e.g. `gh run list --branch main --workflow unit-tests.yml --limit 5 --json
-  headSha,conclusion,displayTitle`. Otherwise stop and tell the user to run `/push` first.
+  headSha,conclusion,displayTitle`. Otherwise run the local checks below.
+
+### Unpushed commits: local checks
+
+If `TARGET` is not on `origin/main`, or a pushed commit has no usable CI run, run CI's checks
+(`.github/workflows/unit-tests.yml`) on a clean checkout of `TARGET` in a temporary worktree under the scratchpad
+directory, so uncommitted changes don't affect the result:
+
+```bash
+git worktree add --detach <scratchpad>/deploy-check <TARGET>
+uv --directory <scratchpad>/deploy-check sync --locked
+uv --directory <scratchpad>/deploy-check run ruff check src tests
+uv --directory <scratchpad>/deploy-check run mypy
+uv --directory <scratchpad>/deploy-check run pytest
+git worktree remove --force <scratchpad>/deploy-check
+```
+
+Remove the worktree whatever the outcome. If a check fails, stop and report its output; don't fix it here.
 
 ## 4. Push to the Space
 
 ```bash
 git push space <TARGET>:refs/heads/main
+```
+
+For a rollback the user confirmed in step 2, force the push, but only over the commit you checked:
+
+```bash
+git push --force-with-lease=refs/heads/main:<space/main sha> space <TARGET>:refs/heads/main
 ```
 
 Git authenticates to huggingface.co with the HF token stored in its credential helper. If the push fails with an
