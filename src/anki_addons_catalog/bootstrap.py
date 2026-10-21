@@ -4,7 +4,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import anthropic
+from anki_addons_mcp.bootstrap import create_app as create_mcp_app
+from anki_addons_mcp.config import Settings as McpSettings
 from fastapi import FastAPI
+from mcp.server.mcpserver import MCPServer
 
 from anki_addons_catalog.adapters.claude.llm import ClaudeLlm
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
@@ -37,6 +40,16 @@ def mcp_auth_headers(url: str, hf_token: str | None) -> dict[str, str]:
     return {header: f"Bearer {hf_token}"}
 
 
+def create_mcp_server(settings: Settings) -> MCPServer:
+    """The MCP server in-process, over the HF dataset (more settings in `ANKI_MCP_*` variables). The default, since
+    the HF Space proxy answers requests from the catalog Space to the MCP Space with HTTP 429 in bursts: it limits
+    the outgoing IP that the catalog Space shares with other Spaces, and `HF_TOKEN` does not lift that limit."""
+    token = _secret(settings.hf_token)
+    server: MCPServer
+    server, _ = create_mcp_app(McpSettings(log_level=settings.log_level, **({"hf_token": token} if token else {})))
+    return server
+
+
 def create_llm(settings: Settings) -> LlmPort:
     client = anthropic.AsyncAnthropic(api_key=_secret(settings.anthropic_api_key))  # None: ANTHROPIC_API_KEY
     fallbacks = settings.fallbacks_enabled and settings.model_profile().fallbacks
@@ -55,10 +68,14 @@ def create_usage(settings: Settings, storage: Path = PERSISTENT_STORAGE) -> Usag
 
 def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmPort | None = None) -> FastAPI:
     mcp = None
-    if catalog is None:
+    if catalog is None and settings.mcp_url:
         headers = mcp_auth_headers(settings.mcp_url, _secret(settings.hf_token))
-        log.info("MCP requests: %s", f"authenticated with HF_TOKEN ({next(iter(headers))})" if headers else "anonymous")
+        log.info("MCP server: %s, %s", settings.mcp_url,
+                 f"authenticated with HF_TOKEN ({next(iter(headers))})" if headers else "anonymous")
         mcp = McpCatalog(settings.mcp_url, settings.mcp_timeout_seconds, headers=headers)
+    elif catalog is None:
+        log.info("MCP server: in-process")
+        mcp = McpCatalog(create_mcp_server(settings), settings.mcp_timeout_seconds)
     port: CatalogPort = catalog or mcp  # type: ignore[assignment]
     catalog_service = CatalogService(port, settings.mcp_cache_ttl_seconds)
     profile = settings.model_profile()

@@ -22,6 +22,7 @@ dependencies = [
     "pydantic>=2",
     "pydantic-settings",
     "nh3>=0.3.7",
+    "anki-addons-mcp>=0.5.0",
 ]
 
 [project.urls]
@@ -47,12 +48,7 @@ dev = [
     "ruff",
     "mypy",
     "bump-my-version",
-    "anki-addons-mcp>=0.5.0.dev0",
 ]
-
-[tool.uv.sources]
-# search_addons with every filter_addons filter is not on PyPI yet; this is the commit the MCP Space runs
-anki-addons-mcp = { git = "https://github.com/Aleks-Ya/anki-addons-mcp", rev = "e7a56f9d0e020ff51ddb753558e1677dfc286ba5" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -67,3 +63,7 @@ files = ["src"]
 [[tool.mypy.overrides]]
 module = ["anki_addons_catalog.domain.*", "anki_addons_catalog.application.*"]
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["anki_addons_mcp.*"]  # no py.typed marker
+ignore_missing_imports = true

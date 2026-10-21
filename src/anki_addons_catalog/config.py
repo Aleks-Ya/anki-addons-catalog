@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     public_url: str = "https://www.anki-addons-catalog.com"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    mcp_url: str = "https://ya-alex-anki-addons-mcp.hf.space/mcp"
+    mcp_url: str | None = None  # a remote MCP server endpoint; unset runs the MCP server in-process
     hf_token: SecretStr | None = Field(default=None, validation_alias=AliasChoices("HF_TOKEN", "ANKI_CATALOG_HF_TOKEN"))
     mcp_timeout_seconds: float = 120.0
     mcp_keepalive_seconds: int = 600

@@ -77,7 +77,7 @@ class _Session:
 class McpCatalog:
     """CatalogPort over one long-lived MCP client session, reconnected when a call fails.
 
-    `server` is the MCP endpoint URL, or an in-process MCPServer in tests. `headers` go with every HTTP request
+    `server` is the MCP endpoint URL, or an in-process MCPServer. `headers` go with every HTTP request
     (the HF token, see `bootstrap.mcp_auth_headers`: anonymous requests from a Space share its IP's rate limit and
     get HTTP 429).
     """

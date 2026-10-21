@@ -119,27 +119,27 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
   `TARGET` (`git show <TARGET>:src/anki_addons_catalog/__init__.py`). Development versions don't change on every
   commit, so the runtime sha (step 4) is what proves the new commit is live, not the version.
 - The home page must contain "Highest rated", and the search must return at least one card. Both pages read from
-  the MCP Space, so a failure here can come from the MCP Space instead.
+  the in-process MCP server, which loads the dataset from the HF Hub on start, so the first page can take seconds.
 - The add-on and top pages must return `200`.
 - If the deployed commit changed a page, also fetch that page and check the change is visible.
 
 If a check fails, report the output and point the user to the **Logs** tab of the Space page.
 
-## 6. Check the MCP dependency
+## 6. Check the MCP server
 
-Production talks to the live MCP Space, but the tests ran against the `anki-addons-mcp` commit pinned in
-`pyproject.toml` (`[tool.uv.sources]`, `rev = ...`). Compare them:
+The catalog runs the `anki-addons-mcp` version locked in `uv.lock` in-process, the one the tests ran against.
+Report it, and check that the Space did not switch to a remote MCP server:
 
 ```bash
-git show <TARGET>:pyproject.toml | grep -o 'rev = "[0-9a-f]*"'
-curl -s https://huggingface.co/api/spaces/Ya-Alex/anki-addons-mcp/runtime \
-  | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r["stage"], r.get("sha"))'
+git show <TARGET>:uv.lock | grep -A1 '^name = "anki-addons-mcp"'
+uv run hf spaces logs Ya-Alex/anki-addons-catalog | grep -E 'MCP server:|Dataset loaded|Catalog unavailable' | head -5
 ```
 
-If the MCP Space is not `RUNNING`, or runs a different commit than the pin, warn the user. Don't fail the deploy
-over it: the MCP Space and its pin are updated separately.
+The log must say "MCP server: in-process". A URL there means the Space variable `ANKI_CATALOG_MCP_URL` is set: warn
+the user, since the HF proxy answers requests from the catalog Space to the MCP Space with HTTP 429 in bursts
+(README-DEV, "MCP server").
 
 ## Done
 
 Report the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the `/healthz` version, the
-smoke-test results and the MCP pin check, or the first step that failed and why.
+smoke-test results and the MCP server check, or the first step that failed and why.

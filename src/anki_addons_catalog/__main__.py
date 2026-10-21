@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(stream=sys.stderr, level=settings.log_level,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if settings.log_level != "DEBUG":
-        for noisy in ("httpx", "httpx2", "mcp"):
+        for noisy in ("httpx", "httpx2", "mcp", "huggingface_hub"):
             logging.getLogger(noisy).setLevel(logging.WARNING)
     uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level=settings.log_level.lower(),
                 proxy_headers=True, forwarded_allow_ips="*")

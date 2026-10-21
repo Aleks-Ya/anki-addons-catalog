@@ -11,7 +11,7 @@ cp .env.example .env    # put your ANTHROPIC_API_KEY there
 ## Run from sources
 
 ```bash
-uv run anki-addons-catalog                 # http://127.0.0.1:8000, uses the deployed MCP Space
+uv run anki-addons-catalog                 # http://127.0.0.1:8000, runs the MCP server in-process
 uv run anki-addons-catalog --help
 ```
 
@@ -42,9 +42,9 @@ uv run ruff check src tests
 uv run mypy
 ```
 
-Tests need no network and no API key: they run the real MCP server code in-process (`anki-addons-mcp` is a dev
-dependency) over a small fixture dataset, replace Claude with a scripted fake, and test the Claude adapter against
-a mocked HTTP transport.
+Tests need no network and no API key: they run the real MCP server code in-process, as production does, over a
+small fixture dataset, replace Claude with a scripted fake, and test the Claude adapter against a mocked HTTP
+transport.
 
 ## Architecture
 
@@ -54,7 +54,8 @@ Ports and adapters, the same layout as the MCP server:
 interface/web    FastAPI routes, Jinja2 templates, static JS/CSS, SSE endpoint, Turnstile + signed cookie
 application      AskService (Claude tool loop), CatalogService (plain pages), TTL cache, rate limit, daily budget
 domain           AddonCard, LlmTurn, AnswerEvent; ports CatalogPort (MCP) and LlmPort (Claude)
-adapters/mcp     CatalogPort over one long-lived MCP client session (reconnects on failure)
+adapters/mcp     CatalogPort over one long-lived MCP client session (reconnects on failure): to the anki-addons-mcp
+                 server in-process (in-memory transport), or to a remote one at ANKI_CATALOG_MCP_URL
 adapters/claude  LlmPort over the Anthropic Messages API (streaming, prompt caching, refusal fallback)
 bootstrap        settings -> adapters -> services -> FastAPI app
 ```
@@ -79,7 +80,7 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 1. Create a Space with the **Docker** SDK. The YAML header of `README.md` configures it (`sdk: docker`,
    `app_port: 7860`).
 2. In the Space settings, add the secrets `ANTHROPIC_API_KEY`, `HF_TOKEN` (a fine-grained read-only token, see
-   [MCP Space](#mcp-space)), `ANKI_CATALOG_TURNSTILE_SECRET`,
+   [MCP server](#mcp-server)), `ANKI_CATALOG_TURNSTILE_SECRET`,
    `ANKI_CATALOG_SESSION_SECRET`, `ANKI_CATALOG_ADMIN_TOKEN` (e.g. `openssl rand -hex 32` for both) and the variable
    `ANKI_CATALOG_TURNSTILE_SITE_KEY`. Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD` and
    `ANKI_CATALOG_RATE_LIMIT_PER_HOUR`.
@@ -158,18 +159,28 @@ Cloudflare dashboard → **Turnstile** → **Add widget**: hostnames `www.anki-a
 local testing), mode **Managed**. Put the site key into `ANKI_CATALOG_TURNSTILE_SITE_KEY` and the secret key into
 `ANKI_CATALOG_TURNSTILE_SECRET`.
 
-### MCP Space
+### MCP server
 
-The catalog sends `HF_TOKEN` with every request to the MCP Space. HuggingFace rate-limits anonymous requests per IP
-address, and a Space shares its outgoing IP with other Spaces, so anonymous calls often fail with HTTP 429 (the site
-then shows "Catalog temporarily unavailable"). With a token the limit is counted per account instead. Any token
-works since the MCP Space is public: create a fine-grained token with no permissions at
-https://huggingface.co/settings/tokens. To a `*.hf.space` URL the token goes in the `X-HF-Authorization` header,
-which the Space proxy reads (as the Gradio client does); a plain `Authorization` header goes to the app, and the
-proxy may count the request as anonymous. The startup log says "MCP requests: authenticated with HF_TOKEN (X-HF-Authorization)".
+By default the catalog runs the [anki-addons-mcp](https://github.com/Aleks-Ya/anki-addons-mcp) server in-process (a
+PyPI dependency, its version in `uv.lock`) and talks to it over MCP's in-memory transport. The server downloads the
+latest dataset snapshot (about 20 MB) from the HF Hub on start, keeps it in memory with a full-text index (the whole
+app takes about 320 MB), reads older snapshots from disk when a page needs them, and checks for a new dataset hourly.
+The startup log says "MCP server: in-process", then "Dataset loaded". Its settings come from its own `ANKI_MCP_*`
+variables. `HF_TOKEN` (a fine-grained read token, https://huggingface.co/settings/tokens) makes the dataset downloads
+count against your account's rate limit instead of the shared IP's.
 
-The catalog also pings the MCP Space's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that it does not go
-to sleep. With HF Pro you can also set a longer sleep time for that Space in its settings.
+The catalog does not call the [MCP Space](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp) by default: the HF
+proxy answered the catalog Space's requests to it with HTTP 429 (HF's HTML error page, without `RateLimit`
+headers), for hours and then in bursts, and the site showed "Catalog temporarily unavailable". It depends on the
+catalog Space's outgoing IP, which other Spaces share, not on the catalog's own traffic or its token: the same calls
+from another Space or an HF Job got through, hundreds per second. HF offers no private network or fixed outgoing IP
+for Spaces.
+
+`ANKI_CATALOG_MCP_URL` (`--mcp-url`) switches to a remote MCP server, such as a local one for development or the MCP
+Space (`https://ya-alex-anki-addons-mcp.hf.space/mcp`). The startup log then says "MCP server: <url>, …". The
+catalog sends `HF_TOKEN` with every request: to a `*.hf.space` URL in the `X-HF-Authorization` header, which the
+Space proxy reads and strips (as the Gradio client does), to other hosts in `Authorization`. It also pings the
+server's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that its Space does not go to sleep.
 
 ## Release a new version
 

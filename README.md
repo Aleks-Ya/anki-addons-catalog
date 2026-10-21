@@ -38,7 +38,7 @@ Browser ──> www.anki-addons-catalog.com (Cloudflare DNS → HuggingFace cust
               └── /api/ask (Server-Sent Events)                │
                     └── Claude tool-use loop ── MCP tools ─────┤
                           │                                    ▼
-                          ▼                     HF Space "Ya-Alex/anki-addons-mcp" /mcp
+                          ▼                     anki-addons-mcp server, in-process
                     Anthropic API                              │
                                                                ▼
                                                  HF dataset "Ya-Alex/anki-addons"
@@ -54,10 +54,11 @@ Anthropic SDK directly.
 | `ANTHROPIC_API_KEY` | | Claude API key (a Space secret) |
 | `ANKI_CATALOG_HOST` / `ANKI_CATALOG_PORT` | `127.0.0.1` / `8000` | HTTP binding (`0.0.0.0` / `7860` in Docker) |
 | `ANKI_CATALOG_PUBLIC_URL` | `https://www.anki-addons-catalog.com` | Base URL for the sitemap and canonical links |
-| `ANKI_CATALOG_MCP_URL` | `https://ya-alex-anki-addons-mcp.hf.space/mcp` | MCP server endpoint |
-| `HF_TOKEN` | | HuggingFace token sent to the MCP Space (a Space secret, in the `X-HF-Authorization` header); without it requests are anonymous and may get HTTP 429 |
+| `ANKI_CATALOG_MCP_URL` | | A remote MCP server endpoint (e.g. `http://localhost:8000/mcp`); unset runs the MCP server in-process |
+| `ANKI_MCP_*` | | Settings of the in-process MCP server, e.g. `ANKI_MCP_REFRESH_INTERVAL_SECONDS` (see the [MCP server](https://github.com/Aleks-Ya/anki-addons-mcp)) |
+| `HF_TOKEN` | | HuggingFace token (a Space secret) for downloading the dataset; also sent to a remote MCP server |
 | `ANKI_CATALOG_MCP_TIMEOUT_SECONDS` | `120` | MCP read timeout (covers a Space waking up) |
-| `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping the MCP Space this often to keep it awake; `0` disables |
+| `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` | `600` | Ping a remote MCP server this often to keep its Space awake; `0` disables |
 | `ANKI_CATALOG_MCP_CACHE_TTL_SECONDS` | `3600` | Cache of MCP results for the plain pages |
 | `ANKI_CATALOG_AI_TOOLS` | all except `query_sql` | JSON list of MCP tools Claude may call |
 | `ANKI_CATALOG_MODEL` | `sonnet` | `sonnet` (Claude Sonnet 5.5), `haiku` (Claude Haiku 5.5) or a full model ID; prices and the refusal fallback follow the model |

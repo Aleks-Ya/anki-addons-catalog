@@ -17,5 +17,8 @@ ENV HOME=/home/user \
     ANKI_CATALOG_HOST=0.0.0.0 \
     ANKI_CATALOG_PORT=7860
 
+# The in-process MCP server's full-text search; installed at build time, not downloaded on start
+RUN python -c "import duckdb; duckdb.connect().execute('INSTALL fts')"
+
 EXPOSE 7860
 CMD ["anki-addons-catalog"]

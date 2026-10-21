@@ -11,6 +11,7 @@ resolution-markers = [
 name = "anki-addons-catalog"
 source = { editable = "." }
 dependencies = [
+    { name = "anki-addons-mcp" },
     { name = "anthropic" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -25,7 +26,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "anki-addons-mcp" },
     { name = "anyio" },
     { name = "bump-my-version" },
     { name = "mypy" },
@@ -36,6 +36,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anki-addons-mcp", specifier = ">=0.5.0" },
     { name = "anthropic" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -50,7 +51,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anki-addons-mcp", git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=e7a56f9d0e020ff51ddb753558e1677dfc286ba5" },
     { name = "anyio" },
     { name = "bump-my-version" },
     { name = "mypy" },
@@ -61,8 +61,8 @@ dev = [
 
 [[package]]
 name = "anki-addons-mcp"
-version = "0.5.0.dev0"
-source = { git = "https://github.com/Aleks-Ya/anki-addons-mcp?rev=e7a56f9d0e020ff51ddb753558e1677dfc286ba5#e7a56f9d0e020ff51ddb753558e1677dfc286ba5" }
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "duckdb" },
     { name = "huggingface-hub" },
@@ -70,6 +70,10 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/8f/69d517ed00fae7f352fbfc67e3497f4cb9bf89530970bd0b882ca43456cd/anki_addons_mcp-0.5.0.tar.gz", hash = "sha256:ddc3db12461bcae116c7329dd3b3bc2c3b3590d909a1b67558648409eb18d5c9", size = 58332, upload-time = "2026-10-20T20:02:49.42Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/f6/38a6491b10f0a9c786edf2d83ddb4923a36731b50a22d9468305a8c5758d/anki_addons_mcp-0.5.0-py3-none-any.whl", hash = "sha256:dc7c2ce167d76b5f6244a24380bec3a08d0c1ae0e132206c83611ae41305e51b", size = 55770, upload-time = "2026-10-20T20:02:47.856Z" },
 ]
 
 [[package]]
