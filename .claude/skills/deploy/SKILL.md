@@ -100,6 +100,34 @@ It exits 0 when the Space is `RUNNING` on that sha, 1 on an error stage and 2 on
   locally with `docker build .` if useful.
 - Still not running the new sha after ~15 min: stop and report the last stage seen.
 
+### Check that the image was really rebuilt
+
+HF's Docker layer cache can reuse the old image: every step of the build log is `CACHED`, even `COPY src`, yet the
+runtime reports the new sha as `RUNNING` while the old code serves. Check the build log, where `PREVIOUS` is the
+`space/main` sha from step 2 (what the Space ran before the push):
+
+```bash
+python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS>
+```
+
+It exits 0 for a fresh build of `TARGET`. It exits 1 when the latest build is for another commit, or when a `COPY`
+step was `CACHED` although the files it copies changed between `PREVIOUS` and `TARGET`, and prints why. It exits 2
+when it can't read the log (it needs the stored HF token, like step 6). Skip this check when step 2 found nothing
+to deploy.
+
+On exit 1, ask the user with AskUserQuestion whether to run a factory rebuild (same commit, no layer cache; the
+site is down for about a minute). Only after they confirm:
+
+```bash
+uv run python -c "from huggingface_hub import HfApi; HfApi().restart_space('Ya-Alex/anki-addons-catalog', factory_reboot=True)"
+python3 .claude/skills/deploy/wait_space.py --restarted <TARGET>
+python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS>
+```
+
+`--restarted` waits for the Space to leave `RUNNING` first, since the old container already reports `TARGET`. If
+the check still fails, or the user declines, stop and report. On exit 2, report it and rely on the version checks
+in steps 5 and 6.
+
 ## 5. Smoke-test the live site
 
 The checks are read-only and free. Never call `/api/ask`: each question costs Claude credits and is
@@ -117,7 +145,7 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
 
 - Both `/healthz` calls must return `{"status": "ok", "version": ...}` with the version of
   `TARGET` (`git show <TARGET>:src/anki_addons_catalog/__init__.py`). Development versions don't change on every
-  commit, so the runtime sha (step 4) is what proves the new commit is live, not the version.
+  commit, so the runtime sha and the build check (step 4) prove the new commit is live, not the version.
 - The home page must contain "Highest rated", and the search must return at least one card. Both pages read from
   the in-process MCP server, which loads the dataset from the HF Hub on start, so the first page can take seconds.
 - The add-on and top pages must return `200`.
@@ -132,14 +160,17 @@ Report it, and check that the Space did not switch to a remote MCP server:
 
 ```bash
 git show <TARGET>:uv.lock | grep -A1 '^name = "anki-addons-mcp"'
+curl -s -m 60 "$SITE/about" | grep -o 'MCP server</a> (v[^)]*)'
 uv run hf spaces logs Ya-Alex/anki-addons-catalog | grep -E 'MCP server:|Dataset loaded|Catalog unavailable' | head -5
 ```
 
-The log must say "MCP server: in-process". A URL there means the Space variable `ANKI_CATALOG_MCP_URL` is set: warn
-the user, since the HF proxy answers requests from the catalog Space to the MCP Space with HTTP 429 in bursts
-(README-DEV, "MCP server").
+The About page must show the locked version; another version means the Space serves an old image (see
+"Check that the image was really rebuilt" in step 4). The log must say "MCP server: in-process". A URL there means
+the Space variable `ANKI_CATALOG_MCP_URL` is set: warn the user, since the HF proxy answers requests from the catalog
+Space to the MCP Space with HTTP 429 in bursts (README-DEV, "MCP server").
 
 ## Done
 
-Report the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the `/healthz` version, the
-smoke-test results and the MCP server check, or the first step that failed and why.
+Report the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the build check
+(and any factory rebuild), the `/healthz` version, the smoke-test results and the MCP server check, or the first step
+that failed and why.
