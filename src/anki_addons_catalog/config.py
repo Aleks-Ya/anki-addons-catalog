@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     ai_tools: list[str] = [
         "search_addons", "filter_addons", "get_addon", "get_addon_readme", "get_addon_description",
         "check_compatibility", "assess_maintenance", "find_similar_addons", "list_addons_by_author",
-        "get_addon_history", "diff_snapshots", "get_statistics", "top_addons", "list_tags", "list_snapshots",
+        "get_addon_history", "diff_snapshots", "get_statistics", "top_addons", "list_tags", "list_anki_versions", "list_snapshots",
     ]
 
     anthropic_api_key: SecretStr | None = Field(

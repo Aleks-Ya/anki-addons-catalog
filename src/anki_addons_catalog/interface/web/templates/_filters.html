@@ -3,9 +3,11 @@
   <form id="filters" action="/search" method="get">
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     <label for="f-anki">Your Anki version
-      <input id="f-anki" type="text" name="anki" value="{{ filters.anki or '' }}" placeholder="e.g. 25.09"
+      <input id="f-anki" type="text" name="anki" value="{{ filters.anki or '' }}"
+             placeholder="e.g. {{ anki_versions[0] if anki_versions else '25.09' }}" list="anki-versions"
              pattern="\d+(\.\d+){1,2}([ab]\d+)?" inputmode="decimal" autocomplete="off">
     </label>
+    {% include "_anki_versions.html" %}
     <small id="f-anki-saved" hidden>Use <a href="#">your Anki <span></span></a></small>
     <fieldset>
       <legend>Quality</legend>

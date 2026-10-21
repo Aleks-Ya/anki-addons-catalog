@@ -139,6 +139,13 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         except (CatalogUnavailable, ToolFailed):
             return None
 
+    async def anki_versions() -> list[str]:
+        """Suggestions for the Anki version inputs; none when the catalog is down or lacks the list."""
+        try:
+            return await ctx.catalog.anki_versions()
+        except (CatalogUnavailable, ToolFailed):
+            return []
+
     async def mcp_version() -> str | None:
         try:
             return await ctx.catalog_port.server_version()
@@ -200,14 +207,14 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         view("search")
         if q:
             ctx.usage.add(u.KEYWORD_SEARCH)
-        results, all_tags = await asyncio.gather(
+        results, all_tags, versions = await asyncio.gather(
             ctx.catalog.search(q, filters, limit=SEARCH_PAGE, offset=offset) if q
             else ctx.catalog.browse(filters, limit=SEARCH_PAGE, offset=offset),
-            ctx.catalog.tags())
+            ctx.catalog.tags(), anki_versions())
         function_tags = sorted((t for t in all_tags if t["group"] == "function"),
                                key=lambda t: (t["name"] not in filters.tags, -t.get("addon_count", 0), t["name"]))
         return await page(request, "search.html", q=q, results=results, offset=offset, page_size=SEARCH_PAGE,
-                          filters=filters, function_tags=function_tags)
+                          filters=filters, function_tags=function_tags, anki_versions=versions)
 
     @app.post("/api/verify")
     async def verify(request: Request, token: str = Form("")) -> Response:
@@ -272,7 +279,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             ctx.catalog.forks(addon_id) if details.get("forks") else asyncio.sleep(0, {"items": []}),
             *(ctx.catalog.addon(r["id"]) for r in relations), return_exceptions=True)
         anki = anki.strip()[:20]
-        compatibility = await ctx.catalog.compatibility(addon_id, anki) if anki else None
+        compatibility, versions = await asyncio.gather(
+            ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions())
         return await page(request, "addon.html", a=details,
                     maintenance=None if isinstance(maintenance, BaseException) else maintenance,
                     similar=[] if isinstance(similar, BaseException) else similar,
@@ -282,7 +290,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     forks=[] if isinstance(forks, BaseException) else forks["items"],
                     parents=[(AddonCard.from_details(p), r["evidence"]) for p, r in zip(parents, relations, strict=True)
                              if not isinstance(p, BaseException)],
-                    anki=anki, compatibility=compatibility)
+                    anki=anki, compatibility=compatibility, anki_versions=versions)
 
     @app.get("/addon/{addon_id}/history")
     async def addon_history(addon_id: int) -> JSONResponse:

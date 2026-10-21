@@ -194,6 +194,27 @@ def test_header_has_no_dataset_date_when_catalog_is_down(make_client: Any, monke
     assert response.status_code == 200 and 'class="dataset-date"' not in response.text
 
 
+@pytest.mark.parametrize("path", ["/search", "/search?q=kanji", f"/addon/{KANJI}"])
+def test_anki_version_inputs_suggest_releases(make_client: Any, path: str) -> None:
+    text = make_client().get(path).text
+    assert 'list="anki-versions"' in text and "e.g. 25.09.2" in text
+    assert ('<datalist id="anki-versions"><option value="25.09.2"><option value="25.09">'
+            '<option value="2.1.66"></datalist>') in text
+
+
+def test_anki_version_inputs_without_suggestions_when_tool_fails(make_client: Any,
+                                                                  monkeypatch: pytest.MonkeyPatch) -> None:
+    from anki_addons_catalog.domain.errors import ToolFailed
+
+    async def failing(self: Any) -> None:
+        raise ToolFailed("list_anki_versions", "Unknown tool")
+    monkeypatch.setattr(CatalogService, "anki_versions", failing)
+    client = make_client()
+    for path in ["/search", f"/addon/{KANJI}"]:
+        response = client.get(path)
+        assert response.status_code == 200 and "<datalist" not in response.text and "e.g. 25.0" in response.text
+
+
 def test_missing_addon_is_404(make_client: Any) -> None:
     assert make_client().get("/addon/42").status_code == 404
 

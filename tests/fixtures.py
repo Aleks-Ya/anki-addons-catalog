@@ -4,7 +4,7 @@ from typing import Any
 from anki_addons_mcp.adapters.memory.repository import InMemoryAddonRepository
 from anki_addons_mcp.application.services import build_services
 from anki_addons_mcp.domain.compatibility import to_point
-from anki_addons_mcp.domain.models import AddonDetails, SnapshotInfo, Tag
+from anki_addons_mcp.domain.models import AddonDetails, AnkiRelease, SnapshotInfo, Tag
 from anki_addons_mcp.interface.mcp.server import build_server
 from mcp.server.mcpserver import MCPServer
 
@@ -22,6 +22,8 @@ TAGS = [
     Tag(name="obsolete", group="status", description="Built into Anki now, or no longer working"),
     Tag(name="paid", group="status", description="Patreon-only, Pro tiers, subscriptions"),
 ]
+ANKI_VERSIONS = [AnkiRelease(version="25.09.2", point_version=250902), AnkiRelease(version="25.09", point_version=250900),
+                 AnkiRelease(version="2.1.66", point_version=66)]
 
 
 def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date: str, anki_version: str,
@@ -85,4 +87,6 @@ def mcp_server() -> MCPServer:
     infos = {d: SnapshotInfo(date=d, latest=d == LATEST, report_generation_date=LATEST_CREATED if d == LATEST else None)
              for d in snapshots}
     tags = {d: TAGS for d in snapshots}
-    return build_server(build_services(InMemoryAddonRepository(snapshots, infos, tags=tags)))
+    anki_versions = {LATEST: ANKI_VERSIONS}  # OLD predates the list
+    return build_server(build_services(InMemoryAddonRepository(snapshots, infos, tags=tags,
+                                                               anki_versions=anki_versions)))

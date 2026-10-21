@@ -56,9 +56,11 @@
   <h2>Will it work on my Anki?</h2>
   <form method="get" class="compat" action="/addon/{{ a.id }}#compat">
     <fieldset role="group">
-      <input name="anki" value="{{ anki }}" placeholder="Anki version, e.g. 25.02" aria-label="Anki version" required maxlength="20">
+      <input name="anki" value="{{ anki }}" placeholder="Anki version, e.g. {{ anki_versions[0] if anki_versions else '25.02' }}"
+             aria-label="Anki version" list="anki-versions" required maxlength="20">
       <button type="submit">Check</button>
     </fieldset>
+    {% include "_anki_versions.html" %}
   </form>
   {% if compatibility %}
   <p id="compat"><mark class="verdict-{{ compatibility.verdict }}">{{ compatibility.verdict }}</mark> {{ compatibility.explanation }}</p>

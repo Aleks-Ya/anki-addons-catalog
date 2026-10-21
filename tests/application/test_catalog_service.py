@@ -89,3 +89,10 @@ async def test_forks(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
     assert [c["id"] for c in (await service.forks(HEATMAP))["items"]] == [FORK]
     assert (await service.forks(KANJI))["items"] == []
+
+
+async def test_anki_versions_newest_first(counting: CountingCatalog) -> None:
+    service = CatalogService(counting)
+    assert await service.anki_versions() == ["25.09.2", "25.09", "2.1.66"]
+    await service.anki_versions()
+    assert counting.calls == ["list_anki_versions"]

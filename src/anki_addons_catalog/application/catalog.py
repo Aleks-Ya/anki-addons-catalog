@@ -99,6 +99,11 @@ class CatalogService:
         tags: list[dict[str, Any]] = await self.call("list_tags")
         return tags
 
+    async def anki_versions(self) -> list[str]:
+        """The stable Anki releases, newest first; empty for a snapshot without the list."""
+        releases: list[dict[str, Any]] = await self.call("list_anki_versions")
+        return [r["version"] for r in releases]
+
     async def tag(self, name: str) -> dict[str, Any] | None:
         return next((t for t in await self.tags() if t["name"] == name), None)
 
