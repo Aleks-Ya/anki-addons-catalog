@@ -164,6 +164,21 @@ def test_about_shows_contacts(make_client: Any) -> None:
     assert 'href="https://github.com/Aleks-Ya/anki-addons-catalog/issues"' in text
 
 
+def test_about_shows_mcp_version(make_client: Any) -> None:
+    from anki_addons_mcp import __version__
+    assert f"Anki Addons MCP server</a> (v{__version__})" in make_client().get("/about").text
+
+
+def test_about_without_mcp_version_when_catalog_is_down(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from anki_addons_catalog.domain.errors import CatalogUnavailable
+
+    async def down(self: Any) -> None:
+        raise CatalogUnavailable("down")
+    monkeypatch.setattr(McpCatalog, "server_version", down)
+    response = make_client().get("/about")
+    assert response.status_code == 200 and "Anki Addons MCP server</a> gives" in response.text
+
+
 def test_compatibility_verdict(make_client: Any) -> None:
     assert "verdict-supported" in make_client().get(f"/addon/{KANJI}?anki=25.02").text
 

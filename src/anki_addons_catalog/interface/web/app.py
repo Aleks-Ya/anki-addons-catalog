@@ -139,6 +139,12 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         except (CatalogUnavailable, ToolFailed):
             return None
 
+    async def mcp_version() -> str | None:
+        try:
+            return await ctx.catalog_port.server_version()
+        except CatalogUnavailable:
+            return None
+
     async def page(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
         """Renders a page; every page shows the dataset date in the header (skipped when the catalog is down)."""
         context.setdefault("dataset_date", await dataset_date() if status_code < 500 else None)
@@ -329,7 +335,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @app.get("/about", response_class=HTMLResponse)
     async def about(request: Request) -> HTMLResponse:
         view("about")
-        return await page(request, "about.html", question_days=ctx.usage.question_days)
+        return await page(request, "about.html", question_days=ctx.usage.question_days, mcp_version=await mcp_version())
 
     @app.get("/admin/usage", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
     async def admin_usage(request: Request) -> HTMLResponse:

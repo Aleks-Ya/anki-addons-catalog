@@ -139,6 +139,11 @@ class McpCatalog:
             return _to_result(await client.call_tool(name, arguments))
         return await self._with_retry(f"call_tool({name})", call)
 
+    async def server_version(self) -> str | None:
+        """The version the MCP server reports in its handshake (in-process and remote alike)."""
+        info = (await self._connect()).server_info
+        return info.version if info else None
+
     async def _probe(self) -> str:
         """A plain HTTP request to the endpoint, to show what a failing server or proxy actually returns."""
         if not isinstance(self._server, str):

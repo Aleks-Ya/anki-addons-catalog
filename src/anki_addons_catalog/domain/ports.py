@@ -13,6 +13,8 @@ class CatalogPort(Protocol):
 
     async def ping(self) -> bool: ...
 
+    async def server_version(self) -> str | None: ...
+
 
 TextCallback = Callable[[str], Awaitable[None]]
 

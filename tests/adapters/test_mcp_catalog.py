@@ -39,6 +39,11 @@ async def test_concurrent_calls_share_one_session(catalog: McpCatalog) -> None:
     assert all(not r.is_error for r in results)
 
 
+async def test_server_version_from_handshake(catalog: McpCatalog) -> None:
+    from anki_addons_mcp import __version__
+    assert await catalog.server_version() == __version__
+
+
 async def test_unreachable_server_raises() -> None:
     catalog = McpCatalog("http://127.0.0.1:9/mcp", timeout_seconds=2)
     with pytest.raises(CatalogUnavailable):

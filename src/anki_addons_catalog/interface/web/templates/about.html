@@ -9,7 +9,7 @@ are still maintained, and recommends the best fits.</p>
 <ul>
   <li>The <a href="https://huggingface.co/datasets/Ya-Alex/anki-addons">Anki Addons dataset</a>: a monthly snapshot of every addon on
     <a href="https://ankiweb.net/shared/addons">AnkiWeb</a>, enriched with GitHub, Anki Forum, AI-summary and AI-tag data.</li>
-  <li>The <a href="https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp">Anki Addons MCP server</a> gives the AI read-only access to the dataset.
+  <li>The <a href="https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp">Anki Addons MCP server</a>{% if mcp_version %} (v{{ mcp_version }}){% endif %} gives the AI read-only access to the dataset.
     You can connect it to your own AI assistant, too.</li>
 </ul>
 {% if dataset_date %}

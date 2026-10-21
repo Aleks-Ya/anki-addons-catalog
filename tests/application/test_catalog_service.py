@@ -26,6 +26,9 @@ class CountingCatalog:
     async def ping(self) -> bool:
         return True
 
+    async def server_version(self) -> str | None:
+        return await self.inner.server_version()
+
 
 @pytest.fixture
 def counting(catalog: McpCatalog) -> CountingCatalog:
