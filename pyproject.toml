@@ -22,7 +22,7 @@ dependencies = [
     "pydantic>=2",
     "pydantic-settings",
     "nh3>=0.3.7",
-    "anki-addons-mcp>=0.6.0",
+    "anki-addons-mcp>=0.7.0",
 ]
 
 [project.urls]

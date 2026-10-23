@@ -8,7 +8,7 @@
   <h1>{{ w.title }}</h1>
   <p>AnkiWeb addon <code>{{ a.id }}</code>
     {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
-  {% if parents %}<p class="fork-of">Fork of {% for p, evidence in parents %}<a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% if parent %}{% set p, evidence = parent %}<p class="fork-of">Fork of <a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}</p>{% endif %}
 </hgroup>
 {% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
 {% if a.ai and a.ai.tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in a.ai.tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}

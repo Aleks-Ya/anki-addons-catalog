@@ -272,12 +272,12 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     async def addon(request: Request, addon_id: int, anki: str = "") -> HTMLResponse:
         view("addon")
         details = await ctx.catalog.addon(addon_id)
-        relations = details.get("forked_from") or []
-        maintenance, similar, readme, description_html, description, forks, *parents = await asyncio.gather(
+        relation = details.get("forked_from")
+        maintenance, similar, readme, description_html, description, forks, *parent = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
             ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id),
             ctx.catalog.forks(addon_id) if details.get("forks") else asyncio.sleep(0, {"items": []}),
-            *(ctx.catalog.addon(r["id"]) for r in relations), return_exceptions=True)
+            *([ctx.catalog.addon(relation["id"])] if relation else []), return_exceptions=True)
         anki = anki.strip()[:20]
         compatibility, versions = await asyncio.gather(
             ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions())
@@ -288,8 +288,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     description_html=None if isinstance(description_html, BaseException) else description_html,
                     description=None if isinstance(description, BaseException) else description,
                     forks=[] if isinstance(forks, BaseException) else forks["items"],
-                    parents=[(AddonCard.from_details(p), r["evidence"]) for p, r in zip(parents, relations, strict=True)
-                             if not isinstance(p, BaseException)],
+                    parent=(AddonCard.from_details(parent[0]), relation["evidence"])
+                    if relation and not isinstance(parent[0], BaseException) else None,
                     anki=anki, compatibility=compatibility, anki_versions=versions)
 
     @app.get("/addon/{addon_id}/history")

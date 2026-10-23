@@ -29,7 +29,7 @@ ANKI_VERSIONS = [AnkiRelease(version="25.09.2", point_version=250902), AnkiRelea
 def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date: str, anki_version: str,
            summary: str, description: str, tags: list[str], user: str | None = None, stars: int = 0,
            readme: str | None = None, description_html: str | None = None, pre_wrap: bool = False,
-           forked_from: list[dict[str, Any]] | None = None, forks: list[int] | None = None,
+           forked_from: dict[str, Any] | None = None, forks: list[int] | None = None,
            fork_source: str | None = None) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
@@ -48,7 +48,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
             "last_commit": update_date + "T10:00:00", "languages": ["Python"], "tests_count": 3, "forks": 1,
             "open_issues": 0, "topics": [title.split()[0].lower()], "fork_source": fork_source,
         } if user else None,
-        "forked_from": forked_from or [],
+        "forked_from": forked_from,
         "forks": forks or [],
         "ai": {"summary": summary, "tags": tags},
         "description": description,
@@ -78,7 +78,7 @@ def latest_addons() -> list[AddonDetails]:
         _addon(FORK, "Heatmap Revived", likes=8, dislikes=2, update_date="2026-07-15", anki_version="25.02~",
                summary="Maintained fork of the review heatmap.", description="Review heatmap for new Anki.",
                tags=["statistics"], user="carol", stars=5, fork_source="glutanimate/review-heatmap",
-               forked_from=[{"id": HEATMAP, "evidence": "github_fork"}]),
+               forked_from={"id": HEATMAP, "evidence": "github_fork"}),
     ]
 
 

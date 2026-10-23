@@ -201,10 +201,10 @@ def test_extract_cards_keeps_fork_relations() -> None:
     cards: dict[int, AddonCard] = {}
     page = {"items": [{"id": 1, "title": "A", "url": "u", "forks": [2]}], "total": 1}
     details = {"id": 2, "anki_web": {"title": "B", "addon_page_url": "u"},
-               "forked_from": [{"id": 1, "evidence": "ai"}], "forks": []}
+               "forked_from": {"id": 1, "evidence": "ai"}, "forks": []}
     extract_cards([page, details], cards)
-    assert cards[1].forks == [2] and cards[1].forked_from == []
-    assert cards[2].forked_from == [1] and cards[2].forks == []
+    assert cards[1].forks == [2] and cards[1].forked_from is None
+    assert cards[2].forked_from == 1 and cards[2].forks == []
 
 
 def test_referenced_ids_in_order_without_duplicates() -> None:

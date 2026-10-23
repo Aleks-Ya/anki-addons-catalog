@@ -34,7 +34,7 @@ class AddonCard(BaseModel):
     github_stars: int | None = None
     github_archived: bool | None = None
     license: str | None = None
-    forked_from: list[int] = []  # addons this one was forked from
+    forked_from: int | None = None  # the addon this one was forked from
     forks: list[int] = []  # addons forked from this one
 
     @classmethod
@@ -49,7 +49,7 @@ class AddonCard(BaseModel):
             update_date=anki_web.get("update_date"), anki_version=anki_web.get("anki_version"),
             ai_summary=ai.get("summary"), ai_tags=ai.get("tags") or [], github_user=github.get("user"), github_repo=github.get("repo"),
             github_stars=github.get("stars"), github_archived=github.get("archived"), license=github.get("license"),
-            forked_from=[r["id"] for r in details.get("forked_from") or []], forks=details.get("forks") or [],
+            forked_from=(details.get("forked_from") or {}).get("id"), forks=details.get("forks") or [],
         )
 
 
