@@ -71,6 +71,10 @@ def test_index_lists_top_addons(make_client: Any) -> None:
     assert f'href="/addon/{OCCLUSION}"' in make_client().get("/").text
 
 
+def test_index_shows_addon_count(make_client: Any) -> None:
+    assert "Ask in plain words across 4 addons." in make_client().get("/").text
+
+
 def test_cards_show_votes_and_approval(make_client: Any) -> None:
     html = make_client().get("/").text
     assert "300 votes" in html and "98% approval" in html  # Image Occlusion Plus: 298 likes, 2 dislikes

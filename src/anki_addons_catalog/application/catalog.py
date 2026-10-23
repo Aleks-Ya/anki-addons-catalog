@@ -95,6 +95,10 @@ class CatalogService:
         stats: dict[str, Any] = await self.call("get_statistics", group_by=STAT_GROUPS, top_values=15)
         return stats
 
+    async def addon_count(self) -> int:
+        stats = await self.call("get_statistics")  # no group_by: only the cheap aggregation
+        return int(stats["aggregation"]["addon_number"])
+
     async def tags(self) -> list[dict[str, Any]]:
         tags: list[dict[str, Any]] = await self.call("list_tags")
         return tags

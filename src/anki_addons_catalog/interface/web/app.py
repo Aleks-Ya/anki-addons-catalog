@@ -195,8 +195,10 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
         view("home")
-        top, recent = await asyncio.gather(ctx.catalog.top("rating", 8), ctx.catalog.top("recently_updated", 8))
-        return await page(request, "index.html", examples=EXAMPLES, top=top["items"], recent=recent["items"])
+        top, recent, addon_count = await asyncio.gather(
+            ctx.catalog.top("rating", 8), ctx.catalog.top("recently_updated", 8), ctx.catalog.addon_count())
+        return await page(request, "index.html", examples=EXAMPLES, top=top["items"], recent=recent["items"],
+                    addon_count=addon_count)
 
     @app.get("/search", response_class=HTMLResponse)
     async def search(request: Request, q: str = "", offset: int = 0) -> HTMLResponse:

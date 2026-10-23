@@ -67,6 +67,7 @@ async def test_snapshots_stats_changes(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
     assert await service.latest_snapshot() == "2026-09-01"
     assert (await service.statistics())["aggregation"]["addon_number"] == 4
+    assert await service.addon_count() == 4
     assert [c["id"] for c in (await service.changes())["added"]] == [KANJI]
     assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP, FORK]
     assert [c["id"] for c in (await service.by_author("bob"))["items"]] == [OCCLUSION]

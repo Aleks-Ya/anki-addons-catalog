@@ -2,7 +2,7 @@
 {% block content %}
 <section class="hero">
   <h1>Find the right Anki addon</h1>
-  <p>Ask in plain words: every AnkiWeb addon, checked for ratings, Anki compatibility, maintenance and forks.</p>
+  <p>Ask in plain words across {{ "{:,}".format(addon_count) }} addons. Answers consider ratings, forks, supported Anki versions, GitHub activity and more.</p>
   {% include "_searchbox.html" %}
   <p class="examples">Try:
     {% for e in examples %}<a href="/search?q={{ e | urlencode }}">{{ e }}</a>{% if not loop.last %} · {% endif %}{% endfor %}
