@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 
 HERE = Path(__file__).parent
 EXAMPLES = [
-    "Image occlusion that works on Anki 25.02",
+    "Maintained forks of Syntax Highlighting for Code",
     "Best addons for learning Japanese kanji",
     "Show heatmap of my review history",
     "Is the AnkiConnect addon still maintained?",
