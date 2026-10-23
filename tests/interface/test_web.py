@@ -366,6 +366,7 @@ def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> No
     events = sse_events(client.get("/api/ask", params={"q": "kanji"}).text)
     assert events[-1][0] == "done"
 
+    client.cookies.clear()  # set() alone adds a second cookie beside the issued one, and both are sent
     client.cookies.set(PASS_COOKIE, "9999999999.forged")
     assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
 
