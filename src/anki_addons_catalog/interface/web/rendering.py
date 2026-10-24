@@ -118,3 +118,27 @@ def human_date(value: str | None) -> str:
     except ValueError:
         return str(value or "")
     return f"{day.day} {day:%b %Y}"
+
+
+_RANKS = {
+    "compatibility": {"supported": 3, "likely": 2, "unknown": 1, "unsupported": 0},
+    "maintenance": {"active": 3, "stale": 2, "unknown": 1, "abandoned": 0},
+}
+_HIGHEST = ("last_activity", "approval", "rating", "github_stars")
+
+
+def best_values(members: list[dict[str, Any]]) -> dict[str, Any]:
+    """The best value of each compared column of a fork family; a column where all members are equal has none.
+
+    Obsolete and archived members take no part: a best mark on them would point visitors to a dead version."""
+    members = [m for m in members if not m.get("obsolete") and not m.get("github_archived")]
+    best: dict[str, Any] = {}
+    for field, ranks in _RANKS.items():
+        labels: set[str] = {str(m.get(field)) for m in members} & ranks.keys()
+        if len(labels) > 1:
+            best[field] = max(labels, key=ranks.__getitem__)
+    for field in _HIGHEST:
+        values: set[Any] = {m.get(field) for m in members} - {None}
+        if len(values) > 1 and (top := max(values)):
+            best[field] = top
+    return best

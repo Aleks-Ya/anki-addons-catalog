@@ -12,6 +12,7 @@ KANJI = 1001
 OCCLUSION = 1002
 HEATMAP = 1003
 FORK = 1004
+FORK_OF_FORK = 1005
 OLD = date(2026, 8, 1)
 LATEST = date(2026, 9, 1)
 LATEST_CREATED = datetime(2026, 9, 3, 4, 5, tzinfo=UTC)
@@ -78,7 +79,10 @@ def latest_addons() -> list[AddonDetails]:
         _addon(FORK, "Heatmap Revived", likes=8, dislikes=2, update_date="2026-07-15", anki_version="25.02~",
                summary="Maintained fork of the review heatmap.", description="Review heatmap for new Anki.",
                tags=["statistics"], user="carol", stars=5, fork_source="glutanimate/review-heatmap",
-               forked_from={"id": HEATMAP, "evidence": "github_fork"}),
+               forked_from={"id": HEATMAP, "evidence": "github_fork"}, forks=[FORK_OF_FORK]),
+        _addon(FORK_OF_FORK, "Heatmap Plus", likes=3, dislikes=0, update_date="2025-03-01", anki_version="2.1.50~",
+               summary="Review heatmap with more colors.", description="Heatmap Revived with color themes.",
+               tags=["statistics"], forked_from={"id": FORK, "evidence": "ai"}),
     ]
 
 

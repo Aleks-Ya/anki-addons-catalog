@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     mcp_cache_ttl_seconds: int = 3600
     ai_tools: list[str] = [
         "search_addons", "filter_addons", "get_addon", "get_addon_readme", "get_addon_description",
-        "check_compatibility", "assess_maintenance", "find_similar_addons", "list_addons_by_author",
+        "check_compatibility", "assess_maintenance", "compare_forks", "find_similar_addons", "list_addons_by_author",
         "get_addon_history", "diff_snapshots", "get_statistics", "top_addons", "list_tags", "list_anki_versions", "list_snapshots",
     ]
 

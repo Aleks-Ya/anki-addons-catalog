@@ -9,6 +9,7 @@
   <p>AnkiWeb addon <code>{{ a.id }}</code>
     {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
   {% if parent %}{% set p, evidence = parent %}<p class="fork-of">Fork of <a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}</p>{% endif %}
+  {% if family %}{% set others = family.members | length - 1 %}<p class="versions-hint"><strong>{{ others }}</strong> other version{{ "s" if others > 1 }} of this addon exist{{ "s" if others == 1 }}. <a href="#versions">Compare versions ↓</a></p>{% endif %}
 </hgroup>
 {% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
 {% if a.ai and a.ai.tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in a.ai.tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}
@@ -80,12 +81,37 @@
   </details>
 </section>
 
-{% if forks %}
-<section id="forks">
-  <h2>Forks</h2>
-  <p>Addons forked from this one; one of them may carry it on.
-    <small>Fork detection is incomplete.</small></p>
-  {% with cards=forks %}{% include "_cards.html" %}{% endwith %}
+{% if family %}
+{% macro cell(field, value) %}<td{% if field in best and value == best[field] %} class="best"{% endif %}>{{ caller() }}</td>{% endmacro %}
+<section id="versions">
+  <h2>Compare versions</h2>
+  <p>The original addon and its forks. The best value in each column is in bold.</p>
+  <div class="versions">
+  <table>
+    <thead><tr><th>Version</th><th>Works on Anki {{ family.anki_version or "–" }}</th><th>Maintenance</th><th>Last activity</th>
+      <th>Votes</th><th>Approval</th><th>GitHub stars</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for m in family.members %}
+    <tr{% if m.id == a.id %} class="current"{% endif %}>
+      <td><span class="depth" style="margin-inline-start: {{ m.depth * 1.25 }}rem">{% if m.depth %}↳ {% endif %}
+        {%- if m.id == a.id %}<strong>{{ m.title }}</strong> <small>this addon</small>{% else %}<a href="/addon/{{ m.id }}">{{ m.title }}</a>{% endif %}
+        {%- if m.role == "original" %} <small>original</small>{% endif %}
+        {%- if m.evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}</span></td>
+      {% call cell("compatibility", m.compatibility) %}{% if m.compatibility %}<mark class="verdict-{{ m.compatibility }}">{{ m.compatibility }}</mark>{% else %}–{% endif %}{% endcall %}
+      {% call cell("maintenance", m.maintenance) %}<mark class="label-{{ m.maintenance }}">{{ m.maintenance }}</mark>{% endcall %}
+      {% call cell("last_activity", m.last_activity) %}{{ m.last_activity | human_date if m.last_activity else "–" }}{% endcall %}
+      {% call cell("rating", m.rating) %}👍 {{ m.likes | compact }} · 👎 {{ m.dislikes | compact }}{% endcall %}
+      {% call cell("approval", m.approval) %}{{ ((m.approval * 100) | round | int ~ "%") if m.rating else "–" }}{% endcall %}
+      {% call cell("github_stars", m.github_stars) %}{{ m.github_stars | compact if m.github_stars is not none else "–" }}{% endcall %}
+      <td>{{ ["obsolete" if m.obsolete else "", "archived" if m.github_archived else "", "beta" if m.beta else "", "paid" if m.paid else ""] | select | join(", ") }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if family.truncated %}<p><small>Only the {{ family.members | length }} closest versions are shown.</small></p>{% endif %}
+  <p><small>Forks can add features or work in a different way. Read the description before you change to another version.
+    Fork detection is incomplete, so other versions can exist.</small></p>
 </section>
 {% endif %}
 

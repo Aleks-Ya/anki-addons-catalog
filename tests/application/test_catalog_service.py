@@ -6,7 +6,7 @@ from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.catalog import CatalogService
 from anki_addons_catalog.domain.errors import ToolFailed
 from anki_addons_catalog.domain.models import SearchFilters, ToolResult
-from tests.fixtures import FORK, HEATMAP, KANJI, OCCLUSION
+from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
 
 pytestmark = pytest.mark.anyio
 
@@ -66,30 +66,35 @@ async def test_unknown_addon_raises(counting: CountingCatalog) -> None:
 async def test_snapshots_stats_changes(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
     assert await service.latest_snapshot() == "2026-09-01"
-    assert (await service.statistics())["aggregation"]["addon_number"] == 4
-    assert await service.addon_count() == 4
+    assert (await service.statistics())["aggregation"]["addon_number"] == 5
+    assert await service.addon_count() == 5
     assert [c["id"] for c in (await service.changes())["added"]] == [KANJI]
-    assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP, FORK]
+    assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP, FORK, FORK_OF_FORK]
     assert [c["id"] for c in (await service.by_author("bob"))["items"]] == [OCCLUSION]
 
 
 async def test_search_and_browse_with_filters(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
-    assert [c["id"] for c in (await service.search("heatmap"))["items"]] == [FORK]  # obsolete hidden by default
+    assert [c["id"] for c in (await service.search("heatmap"))["items"]] == [FORK, FORK_OF_FORK]  # obsolete hidden by default
     assert {c["id"] for c in (await service.search("heatmap", SearchFilters(show_obsolete=True)))["items"]} == {
-        HEATMAP, FORK}
+        HEATMAP, FORK, FORK_OF_FORK}
     assert (await service.search("heatmap", SearchFilters(hide_forks=True)))["total"] == 0
     browse = await service.browse(SearchFilters(show_obsolete=True, sort="update_date"))
-    assert [c["id"] for c in browse["items"]] == [KANJI, OCCLUSION, FORK, HEATMAP]
+    assert [c["id"] for c in browse["items"]] == [KANJI, OCCLUSION, FORK, FORK_OF_FORK, HEATMAP]
     assert [c["id"] for c in (await service.browse(SearchFilters(min_rating=200)))["items"]] == [OCCLUSION]
     old_anki = await service.browse(SearchFilters(anki="2.1.50", show_obsolete=True))
-    assert [c["id"] for c in old_anki["items"]] == [HEATMAP]
+    assert [c["id"] for c in old_anki["items"]] == [HEATMAP, FORK_OF_FORK]
 
 
-async def test_forks(counting: CountingCatalog) -> None:
+async def test_compare_forks(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
-    assert [c["id"] for c in (await service.forks(HEATMAP))["items"]] == [FORK]
-    assert (await service.forks(KANJI))["items"] == []
+    family = await service.compare_forks(FORK_OF_FORK)
+    assert [m["id"] for m in family["members"]] == [HEATMAP, FORK, FORK_OF_FORK]
+    assert family["anki_version"] == "25.09.2"
+    assert (await service.compare_forks(FORK_OF_FORK, "2.1.66"))["anki_version"] == "2.1.66"
+    await service.compare_forks(FORK_OF_FORK)
+    assert counting.calls == ["compare_forks", "compare_forks"]
+    assert [m["id"] for m in (await service.compare_forks(KANJI))["members"]] == [KANJI]
 
 
 async def test_anki_versions_newest_first(counting: CountingCatalog) -> None:

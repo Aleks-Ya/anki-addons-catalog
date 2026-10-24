@@ -24,9 +24,10 @@ from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, C
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
-from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AddonCard, AnswerEvent, SearchFilters
+from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AnswerEvent, SearchFilters
 from anki_addons_catalog.domain.ports import CatalogPort
 from anki_addons_catalog.interface.web.rendering import (
+    best_values,
     compact_number,
     human_date,
     render_description,
@@ -275,12 +276,18 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         view("addon")
         details = await ctx.catalog.addon(addon_id)
         relation = details.get("forked_from")
-        maintenance, similar, readme, description_html, description, forks, *parent = await asyncio.gather(
+        anki = anki.strip()[:20]
+        maintenance, similar, readme, description_html, description, family = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
             ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id),
-            ctx.catalog.forks(addon_id) if details.get("forks") else asyncio.sleep(0, {"items": []}),
-            *([ctx.catalog.addon(relation["id"])] if relation else []), return_exceptions=True)
-        anki = anki.strip()[:20]
+            ctx.catalog.compare_forks(addon_id, anki or None) if relation or details.get("forks")
+            else asyncio.sleep(0, None), return_exceptions=True)
+        if isinstance(family, BaseException) or not family or len(family["members"]) < 2:
+            family = None  # no other known versions, or the comparison failed: the page works without it
+        parent = None
+        if family and relation:
+            member = next((m for m in family["members"] if m["id"] == relation["id"]), None)
+            parent = (member, relation["evidence"]) if member else None
         compatibility, versions = await asyncio.gather(
             ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions())
         return await page(request, "addon.html", a=details,
@@ -289,9 +296,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     readme=None if isinstance(readme, BaseException) else readme,
                     description_html=None if isinstance(description_html, BaseException) else description_html,
                     description=None if isinstance(description, BaseException) else description,
-                    forks=[] if isinstance(forks, BaseException) else forks["items"],
-                    parent=(AddonCard.from_details(parent[0]), relation["evidence"])
-                    if relation and not isinstance(parent[0], BaseException) else None,
+                    family=family, parent=parent, best=best_values(family["members"]) if family else {},
                     anki=anki, compatibility=compatibility, anki_versions=versions)
 
     @app.get("/addon/{addon_id}/history")

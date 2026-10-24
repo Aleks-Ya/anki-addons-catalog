@@ -56,6 +56,12 @@ a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
 mark.label-active, mark.verdict-supported { background: #bbf7d0; color: #14532d; }
 mark.label-stale, mark.verdict-likely { background: #fef08a; color: #713f12; }
 mark.label-abandoned, mark.verdict-unsupported { background: #fecaca; color: #7f1d1d; }
+.versions { overflow-x: auto; }
+.versions table { margin: 0; }
+.versions td, .versions th { white-space: nowrap; }
+.versions td.best { font-weight: bold; }
+.versions .depth { display: inline-block; }
+.versions tr.current td:first-child { box-shadow: inset 3px 0 var(--pico-primary); }
 
 .tabs { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-bottom: 1rem; }
 .tabs a[aria-current="page"] { font-weight: bold; text-decoration: underline; }

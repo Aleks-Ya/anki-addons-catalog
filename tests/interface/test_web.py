@@ -14,7 +14,7 @@ from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, 
 from anki_addons_catalog.interface.web.app import search_url
 from anki_addons_catalog.interface.web.security import PASS_COOKIE
 from tests.conftest import FakeLlm
-from tests.fixtures import FORK, HEATMAP, KANJI, OCCLUSION
+from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
 
 
 def settings(**overrides: Any) -> Settings:
@@ -72,7 +72,7 @@ def test_index_lists_top_addons(make_client: Any) -> None:
 
 
 def test_index_shows_addon_count(make_client: Any) -> None:
-    assert "Ask in plain words across 4 addons." in make_client().get("/").text
+    assert "Ask in plain words across 5 addons." in make_client().get("/").text
 
 
 def test_cards_show_votes_and_approval(make_client: Any) -> None:
@@ -81,18 +81,44 @@ def test_cards_show_votes_and_approval(make_client: Any) -> None:
     assert "<dt>Votes</dt><dd>300 (👍 298 · 👎 2)</dd>" in make_client().get(f"/addon/{OCCLUSION}").text
 
 
+def _versions(html: str) -> str:
+    return html.split('<section id="versions">', 1)[1].split("</section>", 1)[0]
+
+
 def test_fork_page_links_its_parent(make_client: Any) -> None:
     html = make_client().get(f"/addon/{FORK}").text
     assert f'<p class="fork-of">Fork of <a href="/addon/{HEATMAP}">Review Heatmap</a></p>' in html
     assert '<a href="https://github.com/glutanimate/review-heatmap" target="_blank" rel="noopener">' in html
-    assert "<h2>Forks</h2>" not in html
+    assert '<strong>2</strong> other versions of this addon exist. <a href="#versions">' in html
 
 
-def test_parent_page_lists_its_forks(make_client: Any) -> None:
-    html = make_client().get(f"/addon/{HEATMAP}").text
-    assert '<section id="forks">' in html
-    forks = html.split("<h2>Forks</h2>", 1)[1].split("</section>", 1)[0]
-    assert f'href="/addon/{FORK}"' in forks and 'class="fork-of"' not in html
+@pytest.mark.parametrize("addon_id", [HEATMAP, FORK, FORK_OF_FORK])
+def test_every_version_compares_the_whole_family(make_client: Any, addon_id: int) -> None:
+    versions = _versions(make_client().get(f"/addon/{addon_id}").text)
+    others = {HEATMAP, FORK, FORK_OF_FORK} - {addon_id}
+    assert all(f'href="/addon/{other}"' in versions for other in others)
+    assert f'href="/addon/{addon_id}"' not in versions
+    assert '<tr class="current">' in versions and "<small>this addon</small>" in versions
+    assert versions.index("Review Heatmap") < versions.index("Heatmap Revived") < versions.index("Heatmap Plus")
+
+
+def test_versions_mark_the_best_values(make_client: Any) -> None:
+    versions = _versions(make_client().get(f"/addon/{HEATMAP}").text)
+    assert "<th>Works on Anki 25.09.2</th>" in versions and "<small>original</small>" in versions
+    assert versions.count("(AI-detected; may be wrong)") == 1  # Heatmap Plus; Heatmap Revived is a GitHub fork
+    assert "<td>obsolete</td>" in versions  # Review Heatmap: it gets no best mark, though it has the most votes
+    assert '<td class="best">👍 8 · 👎 2</td>' in versions and '<td class="best">👍 78 · 👎 2</td>' not in versions
+
+
+def test_versions_use_the_anki_version_of_the_visitor(make_client: Any) -> None:
+    versions = _versions(make_client().get(f"/addon/{FORK}", params={"anki": "2.1.66"}).text)
+    assert "<th>Works on Anki 2.1.66</th>" in versions
+    assert '<mark class="verdict-unsupported">unsupported</mark>' in versions  # Heatmap Revived needs 25.02
+
+
+def test_addon_without_forks_has_no_versions(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert 'id="versions"' not in html and "versions-hint" not in html and 'class="fork-of"' not in html
 
 
 def test_search_cards_open_addon_in_new_tab(make_client: Any) -> None:
@@ -104,8 +130,9 @@ def test_search_cards_open_addon_in_new_tab(make_client: Any) -> None:
 
 def test_cards_mark_forks(make_client: Any) -> None:
     html = make_client().get("/search", params={"obsolete": "1", "tag": "statistics"}).text
-    assert '<mark title="Forked from another addon of the catalog">fork</mark>' in html
-    assert (f'<a class="badge" href="/addon/{HEATMAP}#forks" target="_blank" title="Addons of the catalog forked from this one">'
+    assert (f'<a class="badge" href="/addon/{FORK}#versions" target="_blank" title="Compare the versions of this addon">'
+            '<mark>fork</mark></a>') in html
+    assert (f'<a class="badge" href="/addon/{HEATMAP}#versions" target="_blank" title="Compare the versions of this addon">'
             '<mark>has 1 fork →</mark></a>') in html
     assert f'href="/addon/{FORK}"' not in make_client().get("/search", params={"nofork": "1"}).text
 
@@ -258,7 +285,7 @@ def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> No
 def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
     client = make_client()
     html = client.get("/search").text
-    assert "All addons <small>(3)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
+    assert "All addons <small>(4)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
     assert f'href="/addon/{HEATMAP}"' in client.get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
 

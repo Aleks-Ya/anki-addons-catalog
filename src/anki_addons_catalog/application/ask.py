@@ -35,8 +35,10 @@ structured criteria. Use get_addon or get_addon_description when a card is not e
 beta, fork-or-reupload, ...). For a task, call list_tags once and also filter by the matching function tags \
 (tags=[...]); pass exclude_tags=['obsolete'] unless the visitor asks about old addons.
 - When the visitor names an Anki version, use check_compatibility. When recommending addons, use assess_maintenance \
-and mention stale or abandoned ones. When an addon is stale, abandoned or unsupported, look for its forks with \
-filter_addons(fork_of=<id>): a maintained fork can be the better recommendation. Compatibility verdicts: likely \
+and mention stale or abandoned ones. When an addon has fork relations (forked_from or forks), call \
+compare_forks(addon_id=<id>), with the visitor's Anki version if they named one: it lists all versions of the addon \
+side by side, and another version can be the better recommendation. compare_forks picks no winner: weigh \
+compatibility, maintenance and approval yourself, and say how the versions differ. Compatibility verdicts: likely \
 means tested on an older Anki and still running; unsupported means Anki disables it (or the version is too old); unknown means no upper version was given.
 - Call independent tools in parallel. Stop searching once you can answer well; a few tool rounds are usually enough.
 
@@ -83,7 +85,10 @@ def extract_cards(value: Any, cards: dict[int, AddonCard]) -> None:
             extract_cards(item, cards)
     elif isinstance(value, dict):
         if {"id", "title", "url"} <= value.keys():
-            cards.setdefault(value["id"], AddonCard.model_validate(value))
+            card = AddonCard.model_validate(value)
+            known = cards.get(card.id)
+            if known is None or (known.ai_summary is None and card.ai_summary is not None):
+                cards[card.id] = card  # compare_forks members carry no summary: a full card replaces them
         elif "anki_web" in value and "id" in value:
             cards[value["id"]] = AddonCard.from_details(value)
         else:
@@ -123,6 +128,8 @@ def _tool_status(call: ToolCall) -> str:
             return f"Checking compatibility with Anki {args.get('anki_version', '')}"
         case "assess_maintenance":
             return f"Checking maintenance of addon {args.get('addon_id', '')}"
+        case "compare_forks":
+            return f"Comparing versions of addon {args.get('addon_id', '')}"
         case "find_similar_addons":
             return "Looking for similar addons"
         case "list_tags":

@@ -4,8 +4,8 @@
     <header>
       <a href="/addon/{{ c.id }}"{% if new_tab %} target="_blank"{% endif %}><strong>{{ c.title }}</strong></a>
       {% if c.github_archived %}<mark>archived</mark>{% endif %}
-      {% if c.forked_from %}<mark title="Forked from another addon of the catalog">fork</mark>{% endif %}
-      {% if c.forks %}<a class="badge" href="/addon/{{ c.id }}#forks"{% if new_tab %} target="_blank"{% endif %} title="Addons of the catalog forked from this one"><mark>has {{ c.forks | length }} fork{{ "s" if c.forks | length > 1 }} →</mark></a>{% endif %}
+      {% if c.forked_from %}<a class="badge" href="/addon/{{ c.id }}#versions"{% if new_tab %} target="_blank"{% endif %} title="Compare the versions of this addon"><mark>fork</mark></a>{% endif %}
+      {% if c.forks %}<a class="badge" href="/addon/{{ c.id }}#versions"{% if new_tab %} target="_blank"{% endif %} title="Compare the versions of this addon"><mark>has {{ c.forks | length }} fork{{ "s" if c.forks | length > 1 }} →</mark></a>{% endif %}
     </header>
     {% if c.ai_summary %}<p class="summary" title="AI-generated summary; may contain mistakes">{{ c.ai_summary }}</p>{% endif %}
     {% if c.ai_tags %}<p class="tags" title="AI-generated tags; may contain mistakes">{% for t in c.ai_tags %}<a class="tag" href="/tag/{{ t | urlencode }}">{{ t }}</a>{% endfor %}</p>{% endif %}

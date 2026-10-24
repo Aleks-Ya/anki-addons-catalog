@@ -1,4 +1,4 @@
-from anki_addons_catalog.interface.web.rendering import render_description, render_markdown, render_readme
+from anki_addons_catalog.interface.web.rendering import best_values, render_description, render_markdown, render_readme
 
 
 def test_ai_answer_escapes_raw_html() -> None:
@@ -22,3 +22,13 @@ def test_description_is_sanitized_and_links_open_in_new_tab() -> None:
 def test_empty_description_renders_nothing() -> None:
     assert render_description(None) == ""
     assert render_description("") == ""
+
+
+def test_best_values_of_a_fork_family() -> None:
+    members = [
+        {"compatibility": "unsupported", "maintenance": "active", "approval": 0.9, "rating": 50, "github_stars": 3},
+        {"compatibility": "unknown", "maintenance": "active", "approval": 0.0, "rating": 0, "github_stars": None},
+        {"compatibility": "supported", "maintenance": "active", "approval": 0.95, "rating": 900, "obsolete": True},
+    ]
+    assert best_values(members) == {"compatibility": "unknown", "approval": 0.9, "rating": 50}
+    assert best_values(members[:1]) == {}

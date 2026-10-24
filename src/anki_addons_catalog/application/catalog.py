@@ -119,10 +119,11 @@ class CatalogService:
         page: dict[str, Any] = await self.call("filter_addons", **args)
         return page
 
-    async def forks(self, addon_id: int, limit: int = 30) -> dict[str, Any]:
-        """Addons forked from this one, best rated first."""
-        page: dict[str, Any] = await self.call("filter_addons", fork_of=addon_id, sort_by="rating", limit=limit)
-        return page
+    async def compare_forks(self, addon_id: int, anki_version: str | None = None) -> dict[str, Any]:
+        """The whole fork family of an addon (the original, its forks and their forks), from any member."""
+        args = {"anki_version": anki_version} if anki_version else {}
+        family: dict[str, Any] = await self.call("compare_forks", addon_id=addon_id, **args)
+        return family
 
     async def changes(self, limit: int = 30) -> dict[str, Any]:
         diff: dict[str, Any] = await self.call("diff_snapshots", limit=limit)
