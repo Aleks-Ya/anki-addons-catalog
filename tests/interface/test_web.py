@@ -95,10 +95,17 @@ def test_parent_page_lists_its_forks(make_client: Any) -> None:
     assert f'href="/addon/{FORK}"' in forks and 'class="fork-of"' not in html
 
 
+def test_search_cards_open_addon_in_new_tab(make_client: Any) -> None:
+    client = make_client()
+    assert f'<a href="/addon/{KANJI}" target="_blank">' in client.get("/search", params={"q": "kanji"}).text
+    home = client.get("/").text
+    assert f'<a href="/addon/{OCCLUSION}">' in home and 'target="_blank"><strong>' not in home
+
+
 def test_cards_mark_forks(make_client: Any) -> None:
     html = make_client().get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert '<mark title="Forked from another addon of the catalog">fork</mark>' in html
-    assert (f'<a class="badge" href="/addon/{HEATMAP}#forks" title="Addons of the catalog forked from this one">'
+    assert (f'<a class="badge" href="/addon/{HEATMAP}#forks" target="_blank" title="Addons of the catalog forked from this one">'
             '<mark>has 1 fork →</mark></a>') in html
     assert f'href="/addon/{FORK}"' not in make_client().get("/search", params={"nofork": "1"}).text
 
@@ -331,8 +338,8 @@ def test_ask_streams_answer(make_client: Any) -> None:
     names = [name for name, _ in events]
     assert names[-3:] == ["answer", "addons", "done"]
     answer_html = events[-3][1]["html"]
-    assert f'<strong><a href="/addon/{KANJI}">Kanji Helper</a></strong>' in answer_html
-    assert events[-2][1]["count"] == 1 and "Kanji Helper" in events[-2][1]["html"]
+    assert f'<strong><a href="/addon/{KANJI}" target="_blank">Kanji Helper</a></strong>' in answer_html
+    assert events[-2][1]["count"] == 1 and f'<a href="/addon/{KANJI}" target="_blank">' in events[-2][1]["html"]
 
 
 def test_ask_validates_query(make_client: Any) -> None:

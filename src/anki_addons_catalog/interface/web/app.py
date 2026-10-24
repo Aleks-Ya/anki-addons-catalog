@@ -262,9 +262,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
         def _event_data(event: AnswerEvent) -> Any:
             if event.type == "answer":
-                return {"html": render_markdown(event.data)}
+                return {"html": render_markdown(event.data, new_tab=True)}
             if event.type == "addons":
-                html = templates.get_template("_cards.html").render(cards=event.data)
+                html = templates.get_template("_cards.html").render(cards=event.data, new_tab=True)
                 return {"html": html, "count": len(event.data)}
             return event.data
 

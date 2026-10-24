@@ -24,6 +24,8 @@ def _link_open(self: RendererHTML, tokens: list[Token], idx: int, options: Optio
     if href.startswith(("http://", "https://")):
         token.attrSet("rel", "nofollow noopener noreferrer")
         token.attrSet("target", "_blank")
+    elif env.get("new_tab"):
+        token.attrSet("target", "_blank")
     return self.renderToken(tokens, idx, options, env)
 
 
@@ -80,8 +82,9 @@ def _sanitize(html: str, link_base: str | None, image_base: str | None,
         attribute_filter=partial(_resolve_attribute, link_base, image_base)))
 
 
-def render_markdown(text: str | None) -> str:
-    return _MD.render(text) if text else ""
+def render_markdown(text: str | None, new_tab: bool = False) -> str:
+    """Renders an AI answer; with new_tab, catalog links open in a new tab too (external ones always do)."""
+    return _MD.render(text, {"new_tab": new_tab}) if text else ""
 
 
 def render_readme(text: str | None, github_user: str | None, github_repo: str | None) -> str:
