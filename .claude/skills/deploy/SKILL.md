@@ -130,8 +130,8 @@ in steps 5 and 6.
 
 ## 5. Smoke-test the live site
 
-The checks are read-only and free. Never call `/api/ask`: each question costs Claude credits and is
-gated by Turnstile.
+The page checks are read-only and free. The AI search check asks Claude one question, which costs a few cents of
+Claude credits; the user allows it for smoke testing.
 
 ```bash
 SITE=https://ya-alex-anki-addons-catalog.hf.space
@@ -150,6 +150,25 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
   the in-process MCP server, which loads the dataset from the HF Hub on start, so the first page can take seconds.
 - The add-on and top pages must return `200`.
 - If the deployed commit changed a page, also fetch that page and check the change is visible.
+
+Then ask the AI search one question. The admin login (password `ANKI_CATALOG_ADMIN_TOKEN` from the local `.env`)
+skips Turnstile and the rate limit; the daily budget still applies. Don't print the token.
+
+```bash
+TOKEN=$(sed -n 's/^ANKI_CATALOG_ADMIN_TOKEN=//p' .env)
+curl -sN -m 180 -u "admin:$TOKEN" "$SITE/api/ask?q=Maintained+forks+of+Review+Heatmap" \
+  | python3 -c 'import sys,json
+events = [(e.split("\n")[0][7:], json.loads(e.split("data: ", 1)[1])) for e in sys.stdin.read().strip().split("\n\n")]
+print([name for name, _ in events if name != "text"][-4:])
+print(next((d["count"], d["html"].count("class=\"summary\"")) for name, d in events if name == "addons"))'
+```
+
+- The events must end with `answer`, `addons`, `done`, and the answer must show at least one card. The second
+  line prints the number of cards and how many of them have a summary.
+- A single `verify` event means the local token is not the Space's `ANKI_CATALOG_ADMIN_TOKEN`; an `error` event
+  shows its message (budget spent, catalog unavailable). Report it; don't retry.
+- Ask one question per deploy: answers are cached per question for the life of the container, so asking again
+  tests nothing. If the deployed commit changed AI search, pick a question that exercises the change instead.
 
 If a check fails, report the output and point the user to the **Logs** tab of the Space page.
 

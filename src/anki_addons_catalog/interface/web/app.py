@@ -171,10 +171,14 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     basic_auth = HTTPBasic(auto_error=False, realm="Anki Addons Catalog admin")
 
+    def is_admin(credentials: HTTPBasicCredentials | None) -> bool:
+        return bool(ctx.admin_token and credentials
+                    and secrets.compare_digest(credentials.password.encode(), ctx.admin_token.encode()))
+
     def require_admin(credentials: Annotated[HTTPBasicCredentials | None, Depends(basic_auth)]) -> None:
         if not ctx.admin_token:
             raise HTTPException(404)
-        if credentials is None or not secrets.compare_digest(credentials.password.encode(), ctx.admin_token.encode()):
+        if not is_admin(credentials):
             raise HTTPException(401, headers={"WWW-Authenticate": 'Basic realm="Anki Addons Catalog admin"'})
 
     @app.exception_handler(CatalogUnavailable)
@@ -229,8 +233,10 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         return response
 
     @app.get("/api/ask")
-    async def ask(request: Request, q: str = "") -> StreamingResponse:
+    async def ask(request: Request, credentials: Annotated[HTTPBasicCredentials | None, Depends(basic_auth)],
+                  q: str = "") -> StreamingResponse:
         query = q.strip()
+        admin = is_admin(credentials)  # the deploy smoke test: no Turnstile and no rate limit; the budget still applies
 
         async def single(event: str, data: Any) -> AsyncIterator[str]:
             yield _sse(event, data)
@@ -243,10 +249,10 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             return stream(single("error", "Please type a question."))
         if len(query) > ctx.max_query_chars:
             return stream(single("error", f"Please keep the question under {ctx.max_query_chars} characters."))
-        if not ctx.human.has_pass(request):
+        if not admin and not ctx.human.has_pass(request):
             ctx.usage.add(u.AI_VERIFY)
             return stream(single("verify", None))
-        if not ctx.limiter.allow(client_ip(request)):
+        if not admin and not ctx.limiter.allow(client_ip(request)):
             ctx.usage.add(u.AI_RATE_LIMITED)
             return stream(single("error", "You have asked many questions in a short time. Please wait a bit, "
                                           "or use the keyword results below."))

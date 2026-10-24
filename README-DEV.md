@@ -61,7 +61,9 @@ bootstrap        settings -> adapters -> services -> FastAPI app
 ```
 
 **AI search** (`/search?q=…` page + `GET /api/ask?q=…` Server-Sent Events):
-1. Checks the question length, the Turnstile pass cookie, the per-IP rate limit and the daily budget.
+1. Checks the question length, the Turnstile pass cookie, the per-IP rate limit and the daily budget. A request
+   with the admin login (see [Usage statistics](#usage-statistics)) skips Turnstile and the rate limit, for smoke
+   tests; the daily budget still applies.
 2. Serves a cached answer for the same question and dataset snapshot, if any.
 3. Runs the tool loop: Claude gets the system prompt and the allowed MCP tools (sorted, with cache breakpoints, so
    the static prefix is prompt-cached), calls tools in parallel, and the app runs them over MCP. At most
@@ -111,7 +113,12 @@ one. Any other model ID also works when all four `ANKI_CATALOG_PRICE_*_PER_MTOK`
 
 `/admin/usage` shows keyword searches, AI questions by outcome (answered, cached, failed, blocked), AI spend and
 page views per UTC day. It asks for a login: any user name, password `ANKI_CATALOG_ADMIN_TOKEN`; without that
-secret the page is off.
+secret the page is off. The same login lets scripts ask the AI search without Turnstile, e.g. the `/deploy` smoke
+test:
+
+```bash
+curl -sN -u "admin:$ANKI_CATALOG_ADMIN_TOKEN" "https://ya-alex-anki-addons-catalog.hf.space/api/ask?q=kanji"
+```
 
 `/admin/questions` logs every AI question for `ANKI_CATALOG_QUESTION_DAYS` days, without the visitor's IP: the
 question, outcome (answered, cached, failed, refused, budget, unavailable, cancelled), tokens, cost, duration, the

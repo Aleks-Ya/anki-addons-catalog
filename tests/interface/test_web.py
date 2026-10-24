@@ -409,6 +409,14 @@ def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> No
     assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
 
 
+def test_admin_asks_without_turnstile_and_rate_limit(make_client: Any) -> None:
+    client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s",
+                         admin_token="secret", rate_limit_per_hour=1)
+    for _ in range(2):
+        assert sse_events(client.get("/api/ask", params={"q": "kanji"}, auth=("admin", "secret")).text)[-1][0] == "done"
+    assert sse_events(client.get("/api/ask", params={"q": "kanji"}, auth=("admin", "wrong")).text) == [("verify", None)]
+
+
 def test_admin_usage_needs_a_configured_token(make_client: Any) -> None:
     assert make_client().get("/admin/usage", auth=("admin", "")).status_code == 404
 
