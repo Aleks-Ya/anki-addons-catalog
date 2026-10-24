@@ -65,6 +65,8 @@ MAX_TOOL_RESULT_CHARS = 30000
 _ADDON_LINK = re.compile(r"/addon/(\d+)|ankiweb\.net/shared/info/(\d+)")
 _SPACES = re.compile(r"\s+")
 FILTERED_TOOLS = {"search_addons", "filter_addons"}
+THIN_CARD_TOOLS = {"compare_forks"}  # its members look like cards but lack the summary, tags and update date
+MAX_LOADED_CARDS = 10
 _MERGED_ARGS = {"tags", "exclude_tags"}
 
 Emit = Callable[[AnswerEvent], Awaitable[None]]
@@ -85,10 +87,7 @@ def extract_cards(value: Any, cards: dict[int, AddonCard]) -> None:
             extract_cards(item, cards)
     elif isinstance(value, dict):
         if {"id", "title", "url"} <= value.keys():
-            card = AddonCard.model_validate(value)
-            known = cards.get(card.id)
-            if known is None or (known.ai_summary is None and card.ai_summary is not None):
-                cards[card.id] = card  # compare_forks members carry no summary: a full card replaces them
+            cards.setdefault(value["id"], AddonCard.model_validate(value))
         elif "anki_web" in value and "id" in value:
             cards[value["id"]] = AddonCard.from_details(value)
         else:
@@ -314,6 +313,7 @@ class AskService:
             record.outcome = "failed"
             await emit(AnswerEvent("error", "No answer was produced. Please rephrase the question."))
             return None
+        await self._load_missing_cards(referenced_ids(answer), cards)
         shown = [cards[i].model_dump() for i in referenced_ids(answer) if i in cards]
         final = [AnswerEvent("answer", answer), AnswerEvent("addons", shown), AnswerEvent("done", None)]
         self._usage.add(u.AI_ANSWERED)
@@ -324,6 +324,15 @@ class AskService:
             await emit(event)
         return final
 
+    async def _load_missing_cards(self, addon_ids: list[int], cards: dict[int, AddonCard]) -> None:
+        """Cards for the linked addons that no tool result carried as a card, e.g. ones named only by compare_forks."""
+        missing = [i for i in addon_ids if i not in cards][:MAX_LOADED_CARDS]
+        results = await asyncio.gather(*(self._catalog.call_tool("get_addon", {"addon_id": i}) for i in missing),
+                                       return_exceptions=True)
+        for result in results:
+            if not isinstance(result, BaseException) and not result.is_error:
+                extract_cards(result.structured, cards)
+
     async def _run_tool(self, call: ToolCall, cards: dict[int, AddonCard], emit: Emit,
                         filters: dict[str, Any]) -> dict[str, Any]:
         await emit(AnswerEvent("status", _tool_status(call)))
@@ -332,7 +341,7 @@ class AskService:
                     "content": f"Unknown tool {call.name}"}
         arguments = with_filters(call.arguments, filters) if call.name in FILTERED_TOOLS else call.arguments
         result = await self._catalog.call_tool(call.name, arguments)
-        if not result.is_error:
+        if not result.is_error and call.name not in THIN_CARD_TOOLS:
             extract_cards(result.structured, cards)
         text = result.text or json.dumps(result.structured, ensure_ascii=False)
         if len(text) > MAX_TOOL_RESULT_CHARS:

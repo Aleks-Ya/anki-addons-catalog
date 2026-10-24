@@ -20,7 +20,7 @@ from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, Usage
 from tests.conftest import FakeLlm
-from tests.fixtures import KANJI, OCCLUSION
+from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
 
 pytestmark = pytest.mark.anyio
 
@@ -40,11 +40,11 @@ def tools(*calls: ToolCall) -> LlmTurn:
 
 
 def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_rounds: int = 3,
-            usage: UsageStats | None = None) -> AskService:
+            usage: UsageStats | None = None, allowed_tools: list[str] = TOOLS) -> AskService:
     async def snapshot() -> str:
         return "2026-09-01"
     return AskService(catalog, llm, DailyBudget(budget_usd, PRICING, today=lambda: date(2026, 10, 1)),
-                      allowed_tools=TOOLS, max_tool_rounds=max_rounds, snapshot=snapshot, usage=usage)
+                      allowed_tools=allowed_tools, max_tool_rounds=max_rounds, snapshot=snapshot, usage=usage)
 
 
 async def collect(ask: AskService, query: str, filters: SearchFilters | None = None) -> list[AnswerEvent]:
@@ -79,6 +79,18 @@ async def test_answers_with_tool_calls_and_cards(catalog: McpCatalog) -> None:
     results = llm.requests[1][-1]["content"]
     assert [r["tool_use_id"] for r in results] == ["t1", "t2"]
     assert all(not r["is_error"] for r in results)
+
+
+async def test_linked_addons_get_full_cards_even_when_only_compare_forks_named_them(catalog: McpCatalog) -> None:
+    llm = FakeLlm([
+        tools(ToolCall("t1", "compare_forks", {"addon_id": HEATMAP})),
+        answer(f"Try [Heatmap Revived](/addon/{FORK}) or [Heatmap Plus](/addon/{FORK_OF_FORK})."),
+    ])
+    events = await collect(service(catalog, llm, allowed_tools=[*TOOLS, "compare_forks"]), "heatmap forks")
+    cards = next(e.data for e in events if e.type == "addons")
+    assert [c["id"] for c in cards] == [FORK, FORK_OF_FORK]
+    assert [c["ai_summary"] for c in cards] == ["Maintained fork of the review heatmap.", "Review heatmap with more colors."]
+    assert all(c["update_date"] for c in cards)
 
 
 async def test_records_the_question_trace(catalog: McpCatalog) -> None:
@@ -205,14 +217,6 @@ def test_extract_cards_keeps_fork_relations() -> None:
     extract_cards([page, details], cards)
     assert cards[1].forks == [2] and cards[1].forked_from is None
     assert cards[2].forked_from == 1 and cards[2].forks == []
-
-
-def test_extract_cards_prefers_full_cards_to_fork_family_members() -> None:
-    cards: dict[int, AddonCard] = {}
-    family = {"members": [{"id": 1, "title": "A", "url": "u", "role": "original", "compatibility": "likely"}]}
-    page = {"items": [{"id": 1, "title": "A", "url": "u", "ai_summary": "Does A."}], "total": 1}
-    extract_cards([family, page, family], cards)
-    assert cards[1].ai_summary == "Does A."
 
 
 def test_referenced_ids_in_order_without_duplicates() -> None:
