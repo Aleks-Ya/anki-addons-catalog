@@ -1,6 +1,7 @@
 <form action="/search" method="get" role="search" class="searchbox">
-  <input type="search" name="q" value="{{ q or '' }}" maxlength="{{ max_query_chars }}" required
-         placeholder="Describe what you want an addon to do…" aria-label="Question" autofocus>
+  <textarea name="q" rows="1" maxlength="{{ max_query_chars }}" required
+            placeholder="Describe what you want an addon to do…" aria-label="Question" autofocus>{{ q or '' }}</textarea>
   {% if filters %}{% for name, value in filters.params(sort=False) %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}{% endif %}
   <button type="submit">Ask</button>
 </form>
+<script src="{{ url_for('static', path='searchbox.js').path }}?v={{ static_hash['searchbox.js'] }}" defer></script>

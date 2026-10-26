@@ -15,8 +15,10 @@
 .hero { text-align: center; padding: 2rem 0 1rem; }
 .hero p { max-width: 42rem; margin-inline: auto; }
 .searchbox { display: flex; gap: .5rem; max-width: 46rem; margin: 1rem auto; }
-.searchbox input { flex: 1; margin-bottom: 0; }
-.searchbox button { width: auto; margin-bottom: 0; }
+/* Pico rounds a search form's ends into a pill, which turns a tall field into a blob. */
+.searchbox[role=search] > :is(textarea, button) { border-radius: 1.5rem; }
+.searchbox textarea { flex: 1; margin-bottom: 0; resize: none; overflow-y: auto; max-height: 40vh; }
+.searchbox button { flex: none; width: auto; margin-bottom: 0; align-self: flex-end; }
 .examples { font-size: .9rem; }
 h2 small, h3 small { font-size: .8rem; font-weight: normal; }
 
