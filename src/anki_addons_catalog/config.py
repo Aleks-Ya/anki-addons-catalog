@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     effort: Literal["low", "medium", "high", "xhigh", "max"] = "low"
     max_tokens: int = 8000
     max_tool_rounds: int = 6
-    max_query_chars: int = 500
+    max_query_chars: int = 2000
     fallbacks_enabled: bool = True
     price_input_per_mtok: float | None = None  # override the model's prices; required for a model not in MODELS
     price_output_per_mtok: float | None = None

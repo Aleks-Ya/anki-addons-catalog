@@ -69,7 +69,7 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_DAILY_BUDGET_USD` | `5` | Global AI spend cap per UTC day; then only keyword search works |
 | `ANKI_CATALOG_RATE_LIMIT_PER_HOUR` | `20` | AI questions per visitor IP per hour; `0` disables |
 | `ANKI_CATALOG_ANSWER_CACHE_TTL_SECONDS` | `86400` | Cache of AI answers per question and snapshot |
-| `ANKI_CATALOG_MAX_QUERY_CHARS` | `500` | Maximum question length |
+| `ANKI_CATALOG_MAX_QUERY_CHARS` | `2000` | Maximum question length |
 | `ANKI_CATALOG_TURNSTILE_SITE_KEY` / `_TURNSTILE_SECRET` | | Cloudflare Turnstile bot check for AI search; disabled when unset |
 | `ANKI_CATALOG_SESSION_SECRET` | random | Key that signs the "human verified" cookie; set it so the cookie survives restarts |
 | `ANKI_CATALOG_PASS_TTL_SECONDS` | `3600` | How long a passed bot check lasts |

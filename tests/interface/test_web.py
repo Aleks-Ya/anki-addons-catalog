@@ -373,6 +373,7 @@ def test_ask_validates_query(make_client: Any) -> None:
     client = make_client(max_query_chars=10)
     assert sse_events(client.get("/api/ask", params={"q": " "}).text)[0][0] == "error"
     assert sse_events(client.get("/api/ask", params={"q": "x" * 11}).text)[0][0] == "error"
+    assert 'maxlength="10"' in client.get("/").text
 
 
 def test_ask_rate_limited(make_client: Any) -> None:

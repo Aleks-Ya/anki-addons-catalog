@@ -107,7 +107,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
                                  public_url=ctx.public_url, top_metrics=TOP_METRICS,
                                  static_hash=_static_hashes(), search_url=search_url, sorts=SORTS,
-                                 min_ratings=MIN_RATINGS)
+                                 min_ratings=MIN_RATINGS, max_query_chars=ctx.max_query_chars)
 
     async def keepalive() -> None:
         while ctx.keepalive_seconds > 0:
