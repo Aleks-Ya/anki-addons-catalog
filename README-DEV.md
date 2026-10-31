@@ -92,8 +92,7 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
    git push space main
    ```
 
-Step 3 for an existing Space is automated by the skill `/deploy`: it offers the development head of `main` and the
-latest release, pushes the chosen commit after a green CI run, waits for the rebuild and smoke-tests the site. CI does not deploy.
+To deploy to an existing Space, use the skill `/deploy`. CI does not deploy.
 
 Run one replica: the rate limiter and the caches live in memory and reset on restart.
 
@@ -191,12 +190,8 @@ server's `/healthz` every `ANKI_CATALOG_MCP_KEEPALIVE_SECONDS` so that its Space
 
 ## Release a new version
 
-The version lives in `src/anki_addons_catalog/__init__.py` (`__version__`) and is bumped with
-[bump-my-version](https://github.com/callowayproject/bump-my-version) (`.bumpversion.toml`), as in the MCP server:
-
-1. `uv run bump-my-version bump release --tag` (`0.1.0.dev0` -> `0.1.0`, tag `v0.1.0`)
-2. `uv run bump-my-version bump minor` (`0.1.0` -> `0.2.0.dev0`)
-3. `git push origin HEAD --tags`
+Release with the skill `/release`, push with `/push` and deploy with `/deploy`. The details are in those skills
+(`.claude/skills`).
 
 ## Continuous integration
 `.github/workflows/unit-tests.yml` runs on every push and pull request to `main`: TruffleHog secret scan,

@@ -3,7 +3,7 @@
 local: the tip of the local main branch, which may not be pushed yet.
 dev: the tip of origin/main (usually a .dev0 version right after /release).
 release: the newest commit on main or origin/main whose __version__ is a plain X.Y.Z (the /release commit; it may be
-untagged or unpushed).
+unpushed).
 space: what the `space` remote's main is now.
 Each line is "<name>: <sha> <version> <pushed|unpushed>", where pushed means the commit is on origin/main, or
 "<name>: none". Run from the repository root after `git fetch --multiple origin space`.

@@ -43,12 +43,14 @@ uv run pytest
 
 ## 3. Push the main branch
 
+`--follow-tags` also pushes the annotated release tags that `/release` created on the pushed commits:
+
 ```bash
-git push origin main
+git push --follow-tags origin main
 ```
 
 If the push is rejected (e.g. remote is ahead), a force-push is allowed only when the user has explicitly asked for
-it (e.g. "force push", "/push force"). Then use `git push --force-with-lease origin main`, never bare `--force`.
+it (e.g. "force push", "/push force"). Then use `git push --follow-tags --force-with-lease origin main`, never bare `--force`.
 If the push is rejected and the user hasn't asked to force, stop and report the rejection.
 
 ## 4. Wait for GitHub Actions and check success

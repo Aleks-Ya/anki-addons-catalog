@@ -38,7 +38,7 @@ curl -s https://huggingface.co/api/spaces/Ya-Alex/anki-addons-catalog/runtime \
 
 The script prints `<name>: <sha> <version> <pushed|unpushed>` for `local` (the tip of the local `main`), `dev` (the
 tip of `origin/main`), `release` (the newest commit on `main` or `origin/main` whose `__version__` is a plain
-`X.Y.Z`; `/release` does not tag, so it may be untagged) and `space` (the Space's `main` now). `pushed` means the
+`X.Y.Z`) and `space` (the Space's `main` now). `pushed` means the
 commit is on `origin/main`. The curl prints the stage and sha the Space actually runs.
 
 Use AskUserQuestion with what the Space runs in the question text, e.g. "The Space runs 0.3.1 (d6bb48b, RUNNING).
