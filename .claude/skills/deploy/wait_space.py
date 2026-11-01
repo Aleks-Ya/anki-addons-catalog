@@ -1,6 +1,7 @@
-"""Wait until the HuggingFace Space runs the given commit, polling its public runtime API.
+"""Wait until the HuggingFace Space runs the given commit, polling its runtime API with the stored HF token, which a
+private Space needs.
 
-Usage: python3 wait_space.py [--restarted] <sha> [<space-id>]
+Usage: uv run python wait_space.py [--restarted] <sha> [<space-id>]
 Polls every 20 s for up to 15 min and prints each stage. Exits 0 when the Space is RUNNING on <sha>,
 1 on a *_ERROR stage, 2 on timeout. With --restarted (after a factory rebuild of the commit already running), the
 Space must first leave RUNNING, so the old container doesn't count.
@@ -10,12 +11,17 @@ import sys
 import time
 import urllib.request
 
+from huggingface_hub import get_token
+
 INTERVAL_SECONDS = 20
 ATTEMPTS = 45
 
 
 def runtime(space: str) -> tuple[str, str | None]:
-    with urllib.request.urlopen(f"https://huggingface.co/api/spaces/{space}/runtime", timeout=30) as response:
+    token = get_token()
+    request = urllib.request.Request(f"https://huggingface.co/api/spaces/{space}/runtime",
+                                     headers={"Authorization": f"Bearer {token}"} if token else {})
+    with urllib.request.urlopen(request, timeout=30) as response:
         data = json.load(response)
     return data["stage"], data.get("sha")
 

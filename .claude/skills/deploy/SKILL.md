@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Deploy any version of main to the HuggingFace Space and see it running — suggest the development heads (local and pushed) and the latest release, ask which one to deploy, push it without running CI or local checks to the `space` remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", or asks to update/redeploy the HuggingFace Space.
+description: Deploy any version of main to the production HuggingFace Space or the private staging Space and see it running — ask which environment to deploy to (unless the argument `production` or `staging` names it), suggest the development heads (local and pushed) and the latest release, ask which one to deploy, push it without running CI or local checks to the Space's remote, wait for the Space to rebuild on that commit, and smoke-test the live site. Use when the user says "deploy", "/deploy", "/deploy staging", or asks to update/redeploy the HuggingFace Space.
 allowed-tools: Bash(git *) Bash(gh *) Bash(uv *) Bash(curl *) Bash(python3 *)
 disable-model-invocation: true
 ---
@@ -14,25 +14,45 @@ commit can be deployed, pushed to GitHub or not. It deploys commits only and doe
 It runs no CI or local checks (lint, types, tests) before pushing: it just deploys the chosen commit.
 Work through the steps in order; stop and report if a step can't be completed.
 
-- Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog (git remote `space`)
-- Site: `https://ya-alex-anki-addons-catalog.hf.space`, custom domain `https://www.anki-addons-catalog.com`,
-  health check `/healthz`
-- Runtime API (public, no token): `https://huggingface.co/api/spaces/Ya-Alex/anki-addons-catalog/runtime`
+If the argument is `production` or `staging`, that is the target. Otherwise, before step 1, use AskUserQuestion to
+ask which environment to deploy to, with the options `Production` (the public site) and `Staging` (the private test
+Space). Don't mark a default. Use the target's values below as `REMOTE`, `SPACE` and `SITE` in every step.
+
+| | Production | Staging |
+|---|---|---|
+| `REMOTE` | `space` | `space-staging` |
+| `SPACE` | `Ya-Alex/anki-addons-catalog` | `Ya-Alex/anki-addons-catalog-staging` |
+| `SITE` | `https://ya-alex-anki-addons-catalog.hf.space` | `https://ya-alex-anki-addons-catalog-staging.hf.space` |
+| Custom domain | `https://www.anki-addons-catalog.com` | none: skip its check |
+| Visibility | public | private: requests to `SITE` need the HF token (below) |
+| Admin password in `.env` | `ANKI_CATALOG_ADMIN_TOKEN` | `ANKI_CATALOG_STAGING_ADMIN_TOKEN` |
+
+The Space page is `https://huggingface.co/spaces/<SPACE>`, the runtime API
+`https://huggingface.co/api/spaces/<SPACE>/runtime` and the health check `/healthz`.
+
+On staging, add this header to every `curl` to `SITE` in steps 5 and 6. The Space proxy reads the token from it and
+leaves `Authorization` free for the admin login. Don't print the token.
+
+```bash
+HF=$(uv run python -c 'from huggingface_hub import get_token; print(get_token())')
+curl -H "X-HF-Authorization: Bearer $HF" ...
+```
 
 ## 1. Preconditions
 
 Only committed code is deployed. If `git status --porcelain` prints anything, mention that uncommitted changes
 won't be deployed, but don't stop and don't commit on the user's behalf.
 
-Confirm the remote `space` exists (`git remote get-url space`). If it is missing, stop and point the user to the
-setup in README-DEV.md (`git remote add space https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog`).
+Confirm the remote exists (`git remote get-url <REMOTE>`). If it is missing, stop and point the user to the
+setup in README-DEV.md (`git remote add <REMOTE> https://huggingface.co/spaces/<SPACE>`).
 
 ## 2. Pick the version to deploy
 
 ```bash
-git fetch -q --multiple origin space
-python3 .claude/skills/deploy/candidates.py
-curl -s https://huggingface.co/api/spaces/Ya-Alex/anki-addons-catalog/runtime \
+git fetch -q --multiple origin <REMOTE>
+python3 .claude/skills/deploy/candidates.py <REMOTE>
+HF=$(uv run python -c 'from huggingface_hub import get_token; print(get_token())')
+curl -s -H "Authorization: Bearer $HF" https://huggingface.co/api/spaces/<SPACE>/runtime \
   | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r["stage"], r.get("sha"))'
 ```
 
@@ -54,27 +74,30 @@ commit (e.g. `local` and `dev` when `main` is pushed). If the user picks "Other"
 (`git rev-parse --verify -q <rev>^{commit}`); otherwise ask again. Call the chosen commit `TARGET` (full sha,
 `git rev-parse <rev>^{commit}`) from here on.
 
-- If `space/main` already equals `TARGET` and the runtime is `RUNNING` on that sha, nothing needs deploying: skip
+- If `<REMOTE>/main` already equals `TARGET` and the runtime is `RUNNING` on that sha, nothing needs deploying: skip
   to step 5 to smoke-test and report.
-- If `space/main` is **not** an ancestor of `TARGET` (`git merge-base --is-ancestor space/main <TARGET>` fails),
-  the push in step 3 must be forced. Check whether `space/main` is on `main` or `origin/main`
-  (`git merge-base --is-ancestor space/main main`, same for `origin/main`):
+- If `<REMOTE>/main` is **not** an ancestor of `TARGET` (`git merge-base --is-ancestor <REMOTE>/main <TARGET>` fails),
+  the push in step 3 must be forced. On production, check whether `<REMOTE>/main` is on `main` or `origin/main`
+  (`git merge-base --is-ancestor <REMOTE>/main main`, same for `origin/main`). On staging, check whether any local or
+  `origin` branch contains it (`git branch --all --contains <REMOTE>/main`, ignoring `<REMOTE>` itself), since
+  staging can run a feature branch.
   - If it is, `TARGET` is a rollback or a different branch of history (e.g. the release when the Space runs a later
-    dev commit). List what the Space would lose (`git log --oneline <TARGET>..space/main`) and ask the user to
-    confirm with AskUserQuestion; force-push in step 3 only after they confirm.
+    dev commit). On staging, force-push in step 3 without asking. On production, list what the Space would lose
+    (`git log --oneline <TARGET>..<REMOTE>/main`) and ask the user to confirm with AskUserQuestion; force-push in
+    step 3 only after they confirm.
   - If it is not, the Space has commits that exist nowhere else (e.g. edits made on huggingface.co). Stop and
     report them; never overwrite them.
 
 ## 3. Push to the Space
 
 ```bash
-git push space <TARGET>:refs/heads/main
+git push <REMOTE> <TARGET>:refs/heads/main
 ```
 
-For a rollback the user confirmed in step 2, force the push, but only over the commit you checked:
+For a rollback allowed in step 2, force the push, but only over the commit you checked:
 
 ```bash
-git push --force-with-lease=refs/heads/main:<space/main sha> space <TARGET>:refs/heads/main
+git push --force-with-lease=refs/heads/main:<<REMOTE>/main sha> <REMOTE> <TARGET>:refs/heads/main
 ```
 
 Git authenticates to huggingface.co with the HF token stored in its credential helper. If the push fails with an
@@ -88,7 +111,7 @@ Pushing triggers a Docker rebuild. Wait until the Space runs the pushed commit, 
 960000 ms. The script polls the runtime API every 20 s for up to 15 min and prints each stage:
 
 ```bash
-python3 .claude/skills/deploy/wait_space.py <TARGET>
+uv run python .claude/skills/deploy/wait_space.py <TARGET> <SPACE>
 ```
 
 It exits 0 when the Space is `RUNNING` on that sha, 1 on an error stage and 2 on timeout.
@@ -104,10 +127,10 @@ It exits 0 when the Space is `RUNNING` on that sha, 1 on an error stage and 2 on
 
 HF's Docker layer cache can reuse the old image: every step of the build log is `CACHED`, even `COPY src`, yet the
 runtime reports the new sha as `RUNNING` while the old code serves. Check the build log, where `PREVIOUS` is the
-`space/main` sha from step 2 (what the Space ran before the push):
+`<REMOTE>/main` sha from step 2 (what the Space ran before the push):
 
 ```bash
-python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS>
+python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS> <SPACE>
 ```
 
 It exits 0 for a fresh build of `TARGET`. It exits 1 when the latest build is for another commit, or when a `COPY`
@@ -119,9 +142,9 @@ On exit 1, ask the user with AskUserQuestion whether to run a factory rebuild (s
 site is down for about a minute). Only after they confirm:
 
 ```bash
-uv run python -c "from huggingface_hub import HfApi; HfApi().restart_space('Ya-Alex/anki-addons-catalog', factory_reboot=True)"
-python3 .claude/skills/deploy/wait_space.py --restarted <TARGET>
-python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS>
+uv run python -c "from huggingface_hub import HfApi; HfApi().restart_space('<SPACE>', factory_reboot=True)"
+uv run python .claude/skills/deploy/wait_space.py --restarted <TARGET> <SPACE>
+python3 .claude/skills/deploy/check_build.py <TARGET> <PREVIOUS> <SPACE>
 ```
 
 `--restarted` waits for the Space to leave `RUNNING` first, since the old container already reports `TARGET`. If
@@ -131,10 +154,11 @@ in steps 5 and 6.
 ## 5. Smoke-test the live site
 
 The page checks are read-only and free. The AI search check asks Claude one question, which costs a few cents of
-Claude credits; the user allows it for smoke testing.
+Claude credits; the user allows it for smoke testing. On staging, add the HF token header to each `curl` and skip
+the custom domain line.
 
 ```bash
-SITE=https://ya-alex-anki-addons-catalog.hf.space
+SITE=<SITE>
 curl -s -m 60 "$SITE/healthz"
 curl -s -m 60 https://www.anki-addons-catalog.com/healthz
 curl -s -m 60 "$SITE/" | grep -c 'Highest rated'
@@ -151,11 +175,11 @@ curl -s -m 60 -o /dev/null -w '%{http_code}\n' "$SITE/top/rating"
 - The add-on and top pages must return `200`.
 - If the deployed commit changed a page, also fetch that page and check the change is visible.
 
-Then ask the AI search one question. The admin login (password `ANKI_CATALOG_ADMIN_TOKEN` from the local `.env`)
-skips Turnstile and the rate limit; the daily budget still applies. Don't print the token.
+Then ask the AI search one question. The admin login (the target's admin password from the local `.env`) skips
+Turnstile and the rate limit; the daily budget still applies. Don't print the token.
 
 ```bash
-TOKEN=$(sed -n 's/^ANKI_CATALOG_ADMIN_TOKEN=//p' .env)
+TOKEN=$(sed -n 's/^<admin password variable>=//p' .env)
 curl -sN -m 180 -u "admin:$TOKEN" "$SITE/api/ask?q=Maintained+forks+of+Review+Heatmap" \
   | python3 -c 'import sys,json
 events = [(e.split("\n")[0][7:], json.loads(e.split("data: ", 1)[1])) for e in sys.stdin.read().strip().split("\n\n")]
@@ -180,7 +204,7 @@ Report it, and check that the Space did not switch to a remote MCP server:
 ```bash
 git show <TARGET>:uv.lock | grep -A1 '^name = "anki-addons-mcp"'
 curl -s -m 60 "$SITE/about" | grep -o 'MCP server</a> (v[^)]*)'
-uv run hf spaces logs Ya-Alex/anki-addons-catalog | grep -E 'MCP server:|Dataset loaded|Catalog unavailable' | head -5
+uv run hf spaces logs <SPACE> | grep -E 'MCP server:|Dataset loaded|Catalog unavailable' | head -5
 ```
 
 The About page must show the locked version; another version means the Space serves an old image (see
@@ -190,6 +214,6 @@ Space to the MCP Space with HTTP 429 in bursts (README-DEV, "MCP server").
 
 ## Done
 
-Report the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the build check
+Report the target, the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the build check
 (and any factory rebuild), the `/healthz` version, the smoke-test results and the MCP server check, or the first step
 that failed and why.

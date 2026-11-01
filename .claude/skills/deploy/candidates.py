@@ -4,12 +4,14 @@ local: the tip of the local main branch, which may not be pushed yet.
 dev: the tip of origin/main (usually a .dev0 version right after /release).
 release: the newest commit on main or origin/main whose __version__ is a plain X.Y.Z (the /release commit; it may be
 unpushed).
-space: what the `space` remote's main is now.
+space: what the Space remote's main is now.
+Usage: python3 candidates.py [<remote>], where <remote> is the Space remote, by default `space`.
 Each line is "<name>: <sha> <version> <pushed|unpushed>", where pushed means the commit is on origin/main, or
-"<name>: none". Run from the repository root after `git fetch --multiple origin space`.
+"<name>: none". Run from the repository root after `git fetch --multiple origin <remote>`.
 """
 import re
 import subprocess
+import sys
 
 VERSION_FILE = "src/anki_addons_catalog/__init__.py"
 RELEASE = re.compile(r"\d+\.\d+\.\d+")
@@ -42,7 +44,8 @@ def pushed(sha: str) -> str:
 
 
 if __name__ == "__main__":
+    remote = sys.argv[1] if len(sys.argv) > 1 else "space"
     refs = [ref for ref in ("main", "origin/main") if ref_sha(ref)]
     for name, sha in (("local", ref_sha("main")), ("dev", ref_sha("origin/main")),
-                      ("release", latest_release(*refs) if refs else None), ("space", ref_sha("space/main"))):
+                      ("release", latest_release(*refs) if refs else None), ("space", ref_sha(f"{remote}/main"))):
         print(f"{name}: {sha} {version_at(sha)} {pushed(sha)}" if sha else f"{name}: none")

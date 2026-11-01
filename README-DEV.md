@@ -96,6 +96,42 @@ To deploy to an existing Space, use the skill `/deploy`. CI does not deploy.
 
 Run one replica: the rate limiter and the caches live in memory and reset on restart.
 
+### Staging
+
+The private Space `Ya-Alex/anki-addons-catalog-staging` runs any commit before it goes to production. Deploy to it
+with `/deploy staging`. Private means that only you can open it, so crawlers stay out and Turnstile can stay off.
+
+Open the site on the [Space page](https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog-staging) while logged in
+to HuggingFace. Scripts reach `https://ya-alex-anki-addons-catalog-staging.hf.space` with an HF token in the
+`X-HF-Authorization` header.
+
+To create it again:
+
+1. Create a private Space with the **Docker** SDK.
+2. Add the settings:
+
+   | Setting | Kind | Value |
+   |---|---|---|
+   | `ANTHROPIC_API_KEY` | secret | a Claude API key |
+   | `HF_TOKEN` | secret | a fine-grained read-only token |
+   | `ANKI_CATALOG_ADMIN_TOKEN` | secret | new, e.g. `openssl rand -hex 32`; also in the local `.env` as `ANKI_CATALOG_STAGING_ADMIN_TOKEN` |
+   | `ANKI_CATALOG_DAILY_BUDGET_USD` | variable | `1` |
+   | `ANKI_CATALOG_PUBLIC_URL` | variable | `https://ya-alex-anki-addons-catalog-staging.hf.space` |
+
+3. Add the remote and replace the Space's initial commit:
+   ```bash
+   git remote add space-staging https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog-staging
+   git push --force space-staging main
+   ```
+
+Staging differs from production:
+
+- Production builds the commit again. `uv.lock` pins the dependencies, but the base images in the `Dockerfile` can
+  change between the two builds.
+- The custom domain, Turnstile and the Storage Bucket are not configured, so staging does not test them. Usage
+  counters reset on restart.
+- The Space sleeps after 48 hours without visits and wakes on the next visit or deploy, so the first page can be slow.
+
 ### Change the AI model
 
 Set the Space variable `ANKI_CATALOG_MODEL` to `haiku` (Claude Haiku 5.5) or `sonnet` (Claude Sonnet 5.5, the
