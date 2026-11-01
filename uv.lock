@@ -36,7 +36,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anki-addons-mcp", specifier = ">=0.8.0" },
+    { name = "anki-addons-mcp", specifier = ">=0.9.1" },
     { name = "anthropic" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -61,7 +61,7 @@ dev = [
 
 [[package]]
 name = "anki-addons-mcp"
-version = "0.8.0"
+version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "duckdb" },
@@ -71,9 +71,9 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/56/728a5c6202aea90a41cac3ee2a3082be6997156cba8a4f62e9292b5e7cbd/anki_addons_mcp-0.8.0.tar.gz", hash = "sha256:a91bb4a41f6570e125517023896877d4e6d2c7436194c10a1b988352ee020df4", size = 65036, upload-time = "2026-10-24T05:14:08.723Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/6b/c5c3b7bf843917cc3d230fb1b50b55c161e2cb9d3f35ac2195a88fb1fbff/anki_addons_mcp-0.9.1.tar.gz", hash = "sha256:134029764ac3e33a3b9d7f577d0abab5d8f7190c89da6abccdb125294282fb4b", size = 79558, upload-time = "2026-11-01T11:10:04.658Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bf/6f/6f64a90c0ad273d23dbd8a497c9532d6dd81fb199313bf0ee25f73d17a48/anki_addons_mcp-0.8.0-py3-none-any.whl", hash = "sha256:b765701dae18c9556aba827d64dada27e789cd7cca8742a4ce028cb83f65863f", size = 61243, upload-time = "2026-10-24T05:14:07.188Z" },
+    { url = "https://files.pythonhosted.org/packages/70/c8/cf2d739a6a6b4860fd0e950097facd1a51ce39668ff12a03d1ceb3c0444e/anki_addons_mcp-0.9.1-py3-none-any.whl", hash = "sha256:e5583c094e8b577a4f7a35c27c80c569e382cde3b1c90400ca45e91bfbf09d35", size = 70073, upload-time = "2026-11-01T11:10:02.772Z" },
 ]
 
 [[package]]

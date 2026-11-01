@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 from anki_addons_mcp.adapters.memory.repository import InMemoryAddonRepository
@@ -15,7 +15,7 @@ FORK = 1004
 FORK_OF_FORK = 1005
 OLD = date(2026, 8, 1)
 LATEST = date(2026, 9, 1)
-LATEST_CREATED = datetime(2026, 9, 3, 4, 5, tzinfo=UTC)
+LATEST_CREATED = "2026-09-03T04:05:00"
 TAGS = [
     Tag(name="dictionary", group="function", description="Lookup, definitions, translation"),
     Tag(name="image-occlusion", group="function", description="Image occlusion"),
