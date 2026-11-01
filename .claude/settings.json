@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "../anki-addons-mcp",
+      "../anki-addons-dataset"
+    ],
+    "deny": [
+      "Edit(~/pr/home/anki-addons-mcp/**)",
+      "Edit(~/pr/home/anki-addons-dataset/**)"
+    ]
+  }
+}
