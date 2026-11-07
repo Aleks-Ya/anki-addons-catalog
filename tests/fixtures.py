@@ -31,7 +31,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
            summary: str, description: str, tags: list[str], user: str | None = None, stars: int = 0,
            readme: str | None = None, description_html: str | None = None, pre_wrap: bool = False,
            forked_from: dict[str, Any] | None = None, forks: list[int] | None = None,
-           fork_source: str | None = None) -> AddonDetails:
+           fork_source: str | None = None, languages: list[str] | None = None) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
         "anki_web": {
@@ -46,11 +46,14 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
         },
         "github": {
             "user": user, "repo": title.lower().replace(" ", "-"), "stars": stars, "license": "MIT",
-            "last_commit": update_date + "T10:00:00", "languages": ["Python"], "tests_count": 3, "forks": 1,
+            "last_commit": update_date + "T10:00:00", "languages": ["Python"], "tests_count": 3, "fork_count": 1,
             "open_issues": 0, "topics": [title.split()[0].lower()], "fork_source": fork_source,
         } if user else None,
         "forked_from": forked_from,
         "forks": forks or [],
+        "package": {"file_name": f"{addon_id}.ankiaddon", "primary_language": languages[0],
+                    "language_bytes": [{"name": n, "bytes": 1000 // (i + 1)} for i, n in enumerate(languages)]}
+        if languages else None,
         "ai": {"summary": summary, "tags": tags},
         "description": description,
         "description_html": description_html,
@@ -63,7 +66,7 @@ def latest_addons() -> list[AddonDetails]:
     return [
         _addon(KANJI, "Kanji Helper", likes=118, dislikes=2, update_date="2026-08-20", anki_version="25.02~",
                summary="Shows kanji stroke order.", description="Kanji stroke order and readings.", tags=["dictionary"],
-               user="alice", stars=50, readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)\n\n"
+               user="alice", stars=50, languages=["python", "javascript"], readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)\n\n"
                       '<p align="center"><a href="https://y.org" target="_blank"><img src="img/b.png"></a></p>\n\n'
                       '<img src="x.png" onerror="alert(2)"><a href="javascript:alert(3)">js</a>\n\n'
                       '<iframe src="https://evil.org"></iframe><style>body{display:none}</style>'),
@@ -82,7 +85,7 @@ def latest_addons() -> list[AddonDetails]:
                forked_from={"id": HEATMAP, "evidence": "github_fork"}, forks=[FORK_OF_FORK]),
         _addon(FORK_OF_FORK, "Heatmap Plus", likes=3, dislikes=0, update_date="2025-03-01", anki_version="2.1.50~",
                summary="Review heatmap with more colors.", description="Heatmap Revived with color themes.",
-               tags=["statistics"], forked_from={"id": FORK, "evidence": "ai"}),
+               tags=["statistics"], forked_from={"id": FORK, "evidence": "ai"}, languages=["python"]),
     ]
 
 

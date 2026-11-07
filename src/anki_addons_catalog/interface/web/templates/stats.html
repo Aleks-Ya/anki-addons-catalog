@@ -2,6 +2,7 @@
 {% block title %}Statistics – Anki Addons Catalog{% endblock %}
 {% block content %}
 {% set agg = stats.aggregation %}
+{% set titles = {"ai_tag": "AI tag", "primary_language": "Language on GitHub", "package_language": "Language in the package"} %}
 <h1>Anki addon statistics</h1>
 <p>Snapshot of {{ stats.snapshot }}.</p>
 <div class="grid kpis">
@@ -13,7 +14,7 @@
 <div class="groups">
 {% for g in stats.groups %}
   <article>
-    <h3>{{ "AI tag" if g.field == "ai_tag" else g.field | replace("_", " ") | capitalize }} <small>({{ g.distinct_values }} distinct)</small></h3>
+    <h3>{{ titles[g.field] or g.field | replace("_", " ") | capitalize }} <small>({{ g.distinct_values }} distinct)</small></h3>
     {% set total = g.counts.values() | sum %}
     <table class="bars"><tbody>
     {% for value, count in g.counts.items() %}

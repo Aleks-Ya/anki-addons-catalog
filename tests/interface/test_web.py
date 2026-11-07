@@ -116,6 +116,16 @@ def test_versions_use_the_anki_version_of_the_visitor(make_client: Any) -> None:
     assert '<mark class="verdict-unsupported">unsupported</mark>' in versions  # Heatmap Revived needs 25.02
 
 
+def test_addon_page_shows_github_fork_count(make_client: Any) -> None:
+    assert "forks 1" in make_client().get(f"/addon/{KANJI}").text
+
+
+@pytest.mark.parametrize(("addon_id", "languages"), [(KANJI, "python, javascript"), (FORK_OF_FORK, "python")])
+def test_addon_page_shows_package_languages(make_client: Any, addon_id: int, languages: str) -> None:
+    html = make_client().get(f"/addon/{addon_id}").text
+    assert f"<dt>Languages in the package</dt><dd>{languages}</dd>" in html
+
+
 def test_addon_without_forks_has_no_versions(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI}").text
     assert 'id="versions"' not in html and "versions-hint" not in html and 'class="fork-of"' not in html
@@ -341,6 +351,12 @@ def test_stats_has_ai_tags(make_client: Any) -> None:
     html = make_client().get("/stats").text
     assert "AI tag" in html
     assert 'href="/tags"' in html
+
+
+def test_stats_has_github_and_package_languages(make_client: Any) -> None:
+    html = make_client().get("/stats").text
+    assert "Language on GitHub" in html
+    assert "Language in the package" in html
 
 
 def test_sitemap_and_robots(make_client: Any) -> None:

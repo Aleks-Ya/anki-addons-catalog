@@ -27,6 +27,7 @@
       <dt>Votes</dt><dd>{{ w.rating }} (👍 {{ w.likes }} · 👎 {{ w.dislikes }})</dd>
       <dt>Updated</dt><dd>{{ w.update_date or "unknown" }}</dd>
       <dt>Anki versions</dt><dd>{{ w.anki_version or "unknown" }}</dd>
+      {% if a.package and a.package.language_bytes %}<dt>Languages in the package</dt><dd>{{ a.package.language_bytes | map(attribute="name") | join(", ") }}</dd>{% endif %}
       {% if w.description_language %}<dt>Description language</dt><dd>{{ w.description_language }}</dd>{% endif %}
     </dl>
   </article>
@@ -43,7 +44,7 @@
     <dl>
       <dt>Repository</dt><dd><a href="{{ gh.url }}" target="_blank" rel="noopener">{{ gh.user }}/{{ gh.repo }}</a> · <a href="/author/{{ gh.user }}">more by {{ gh.user }}</a></dd>
       {% if gh.fork_source %}<dt>Fork of</dt><dd><a href="https://github.com/{{ gh.fork_source }}" target="_blank" rel="noopener">{{ gh.fork_source }}</a></dd>{% endif %}
-      <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.forks is not none %} · forks {{ gh.forks }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}</dd>
+      <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.fork_count is not none %} · forks {{ gh.fork_count }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}</dd>
       <dt>Last commit</dt><dd>{{ (gh.last_commit or "unknown")[:10] }}</dd>
       {% if gh.license %}<dt>License</dt><dd>{{ gh.license }}</dd>{% endif %}
       {% if gh.languages %}<dt>Languages</dt><dd>{{ gh.languages | join(", ") }}</dd>{% endif %}

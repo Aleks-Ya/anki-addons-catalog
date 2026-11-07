@@ -10,7 +10,7 @@ TOP_METRICS = {
     "rating": "Highest rated", "likes": "Most liked", "stars": "Most GitHub stars",
     "forum_posts": "Most discussed on the Anki Forum", "recently_updated": "Recently updated",
 }
-STAT_GROUPS = ["license", "primary_language", "description_language", "anki_version", "update_year", "ai_tag"]
+STAT_GROUPS = ["license", "primary_language", "package_language", "description_language", "anki_version", "update_year", "ai_tag"]
 __all__ = ["OBSOLETE_TAG", "TOP_METRICS", "CatalogService"]
 
 
