@@ -123,7 +123,7 @@ def test_addon_page_shows_github_fork_count(make_client: Any) -> None:
 @pytest.mark.parametrize(("addon_id", "languages"), [(KANJI, "python, javascript"), (FORK_OF_FORK, "python")])
 def test_addon_page_shows_package_languages(make_client: Any, addon_id: int, languages: str) -> None:
     html = make_client().get(f"/addon/{addon_id}").text
-    assert f"<dt>Languages in the package</dt><dd>{languages}</dd>" in html
+    assert f"<dt>Languages</dt><dd>{languages}</dd>" in html
 
 
 def test_addon_without_forks_has_no_versions(make_client: Any) -> None:
