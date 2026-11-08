@@ -38,7 +38,7 @@ curl http://localhost:7860/healthz
 
 ```bash
 uv run pytest
-uv run ruff check src tests
+uv run ruff check src tests .claude/skills
 uv run mypy
 ```
 

@@ -26,8 +26,10 @@ def api(path: str, **params: str) -> Any:
 
 
 def analyzed_sha(branches: dict[str, Any]) -> str | None:
-    main = next((b for b in branches["branches"] if b["name"] == "main"), {})
-    return main.get("commit", {}).get("sha")
+    for branch in branches["branches"]:
+        if branch["name"] == "main" and "commit" in branch:
+            return str(branch["commit"]["sha"])
+    return None
 
 
 def failed_conditions(status: dict[str, Any]) -> list[str]:

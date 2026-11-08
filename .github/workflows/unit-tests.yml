@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
       - name: Ruff
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests .claude/skills
       - name: Mypy
         run: uv run mypy
       - name: PyTest

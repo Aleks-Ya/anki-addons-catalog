@@ -29,7 +29,7 @@ Run the same checks as CI (`.github/workflows/unit-tests.yml`) so failures are c
 
 ```bash
 uv lock --upgrade && uv sync
-uv run ruff check src tests
+uv run ruff check src tests .claude/skills
 uv run mypy
 uv run pytest
 ```
@@ -55,9 +55,9 @@ If the push is rejected and the user hasn't asked to force, stop and report the 
 
 ## 4. Wait for GitHub Actions and check success
 
-The push triggers the **Unit-tests** workflow (TruffleHog → Ruff → Mypy → PyTest → SonarCloud Scan). Watch the run
-for the pushed commit to completion, with a Bash timeout of 600000 ms (if the timeout hits first, run the script
-again: it finds the same run):
+The push triggers the **Unit-tests** workflow (TruffleHog → Ruff → Mypy → PyTest → SonarCloud Scan). Watch the
+run for the pushed commit to completion, with a Bash timeout of 600000 ms (if the timeout hits first, run the
+script again: it finds the same run):
 
 ```bash
 python3 .claude/skills/push/wait_ci.py "$(git rev-parse HEAD)"

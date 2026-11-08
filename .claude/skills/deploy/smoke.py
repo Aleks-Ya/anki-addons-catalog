@@ -1,4 +1,4 @@
-"""Smoke-test the Space after /deploy: health and version, the main pages, the MCP server and, on request, the AI search.
+"""Smoke-test the Space after /deploy: health and version, the main pages, the MCP server and optionally AI search.
 
 Usage: uv run python smoke.py <target-sha> <production|staging> [--page <path>[=<text>]]... [--ask <question>]
 Run from the repository root. Reads the stored HF token (staging is private) and the admin password from `.env`

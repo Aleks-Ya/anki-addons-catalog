@@ -24,7 +24,9 @@ token a request to the private staging Space needs and the admin password in `.e
 |---|---|---|
 | `REMOTE` | `space` | `space-staging` |
 | `SPACE` | `Ya-Alex/anki-addons-catalog` | `Ya-Alex/anki-addons-catalog-staging` |
-| Site | `https://ya-alex-anki-addons-catalog.hf.space` and `https://www.anki-addons-catalog.com` | `https://ya-alex-anki-addons-catalog-staging.hf.space` (private) |
+| Site | `https://ya-alex-anki-addons-catalog.hf.space` | `https://ya-alex-anki-addons-catalog-staging.hf.space` |
+| Custom domain | `https://www.anki-addons-catalog.com` | none |
+| Visibility | public | private: requests need the HF token |
 
 The Space page is `https://huggingface.co/spaces/<SPACE>`.
 

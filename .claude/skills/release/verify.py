@@ -80,8 +80,8 @@ def dev(version: str) -> list[Check]:
 
 
 if __name__ == "__main__":
-    mode, args = sys.argv[1], sys.argv[2:]
-    checks = {"pre": pre, "release": release, "dev": dev}[mode](*args)
+    mode = sys.argv[1]
+    checks = pre() if mode == "pre" else release(sys.argv[2]) if mode == "release" else dev(sys.argv[2])
     for name, ok, detail in checks:
         print(f"{'PASS' if ok else 'FAIL'} {name}: {detail}")
     sys.exit(0 if all(ok for _, ok, _ in checks) else 1)

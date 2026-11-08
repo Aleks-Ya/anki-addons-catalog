@@ -58,7 +58,7 @@ line-length = 120
 
 [tool.mypy]
 python_version = "3.13"
-files = ["src"]
+files = ["src", ".claude/skills"]
 
 [[tool.mypy.overrides]]
 module = ["anki_addons_catalog.domain.*", "anki_addons_catalog.application.*"]
