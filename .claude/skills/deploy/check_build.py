@@ -1,6 +1,6 @@
 """Check that the Space's latest build really built <target>, not a stale image from HF's layer cache.
 
-Usage: python3 check_build.py <target-sha> <previous-sha> [<space-id>]
+Usage: uv run python check_build.py <target-sha> <previous-sha> <production|staging>
 Reads the build log (`hf spaces logs --build`, the stored HF token) and fails when the build is not for <target>,
 or when a COPY step of the Dockerfile was CACHED although the files it copies changed between <previous> (the
 commit the Space ran before the push) and <target>. HF has reused the old image that way while reporting the new
@@ -11,6 +11,8 @@ import re
 import subprocess
 import sys
 from itertools import pairwise
+
+from space import get_target
 
 HEADER = re.compile(r"^===== Build Queued at .* / Commit SHA: (\w+) =====$")
 COPY = re.compile(r"^--> COPY (?!--from)(.+) \S+$")  # `COPY <sources...> <dest>`, not `COPY --from=<image>`
@@ -59,4 +61,4 @@ def main(target: str, previous: str, space: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "Ya-Alex/anki-addons-catalog"))
+    sys.exit(main(sys.argv[1], sys.argv[2], get_target(sys.argv[3]).space))
