@@ -56,10 +56,11 @@ curl -s -H "Authorization: Bearer $HF" https://huggingface.co/api/spaces/<SPACE>
   | python3 -c 'import sys,json; r=json.load(sys.stdin); print(r["stage"], r.get("sha"))'
 ```
 
-The script prints `<name>: <sha> <version> <pushed|unpushed>` for `local` (the tip of the local `main`), `dev` (the
-tip of `origin/main`), `release` (the newest commit on `main` or `origin/main` whose `__version__` is a plain
-`X.Y.Z`) and `space` (the Space's `main` now). `pushed` means the
-commit is on `origin/main`. The curl prints the stage and sha the Space actually runs.
+The script prints `<name>: <sha> <version> <pushed|tagged|unpushed>` for `local` (the tip of the local `main`), `dev`
+(the tip of `origin/main`), `release` (the newest commit on `main` or `origin/main` whose `__version__` is a plain
+`X.Y.Z`) and `space` (the Space's `main` now). `pushed` means the commit is on `origin/main`. `tagged` means it is on
+GitHub through a tag but not on `main` there: `/release` pushes the release tag, and its commits reach `main` with the
+next `/push`. The curl prints the stage and sha the Space actually runs.
 
 Use AskUserQuestion with what the Space runs in the question text, e.g. "The Space runs 0.3.1 (d6bb48b, RUNNING).
 Which version to deploy?", and one option per candidate, with the exact version and short sha as the label and
@@ -67,7 +68,7 @@ whether it is pushed in the description:
 
 - `0.4.0.dev0 (e5a1cbb)` (local): the latest local commit on `main`, not pushed to GitHub
 - `0.4.0.dev0 (abc1234)` (dev): the latest commit on GitHub's `main`
-- `0.3.1 (d6bb48b)` (release): the latest release
+- `0.3.1 (d6bb48b)` (release): the latest release (if `tagged`: on GitHub as tag `v0.3.1`, not on its `main` yet)
 
 Don't mark a default. Drop a candidate that is `none`, and offer a commit once when several candidates are the same
 commit (e.g. `local` and `dev` when `main` is pushed). If the user picks "Other", accept any commit

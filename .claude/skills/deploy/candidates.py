@@ -6,8 +6,9 @@ release: the newest commit on main or origin/main whose __version__ is a plain X
 unpushed).
 space: what the Space remote's main is now.
 Usage: python3 candidates.py [<remote>], where <remote> is the Space remote, by default `space`.
-Each line is "<name>: <sha> <version> <pushed|unpushed>", where pushed means the commit is on origin/main, or
-"<name>: none". Run from the repository root after `git fetch --multiple origin <remote>`.
+Each line is "<name>: <sha> <version> <pushed|tagged|unpushed>", or "<name>: none". pushed means the commit is on
+origin/main; tagged means it is not, but a tag on GitHub points at it (the /release commit before `/push`). Run from
+the repository root after `git fetch --multiple origin <remote>`.
 """
 import re
 import subprocess
@@ -38,14 +39,20 @@ def ref_sha(ref: str) -> str | None:
     return result.stdout.strip() or None
 
 
-def pushed(sha: str) -> str:
+def tagged_on_origin() -> set[str]:
+    """The shas that tags on origin point at, with annotated tags also peeled to their commits (the `^{}` lines)."""
+    return {line.split()[0] for line in git("ls-remote", "--tags", "origin").splitlines()}
+
+
+def push_state(sha: str, tagged: set[str]) -> str:
     on_origin = subprocess.run(["git", "merge-base", "--is-ancestor", sha, "origin/main"], check=False).returncode == 0
-    return "pushed" if on_origin else "unpushed"
+    return "pushed" if on_origin else "tagged" if sha in tagged else "unpushed"
 
 
 if __name__ == "__main__":
     remote = sys.argv[1] if len(sys.argv) > 1 else "space"
     refs = [ref for ref in ("main", "origin/main") if ref_sha(ref)]
+    tagged = tagged_on_origin()
     for name, sha in (("local", ref_sha("main")), ("dev", ref_sha("origin/main")),
                       ("release", latest_release(*refs) if refs else None), ("space", ref_sha(f"{remote}/main"))):
-        print(f"{name}: {sha} {version_at(sha)} {pushed(sha)}" if sha else f"{name}: none")
+        print(f"{name}: {sha} {version_at(sha)} {push_state(sha, tagged)}" if sha else f"{name}: none")

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Bump the version for a release — show the current version, offer the exact major, minor and patch versions to choose from, bump to the chosen one with bump-my-version, commit and tag it, switch to the next development version (`.dev0`) in a second commit, then push the tag and publish a GitHub Release. Requires `main` to be pushed already. Does not push `main` or deploy. Use when the user says "release", "/release", or asks to bump the version.
+description: Bump the version for a release — show the current version, offer the exact major, minor and patch versions to choose from, bump to the chosen one with bump-my-version, commit and tag it, switch to the next development version (`.dev0`) in a second commit, then push the tag with the release commit as GitHub's `main` and publish a GitHub Release. Requires `main` to be pushed already. Does not push the development commit or deploy. Use when the user says "release", "/release", or asks to bump the version.
 allowed-tools: Bash(git *) Bash(uv run bump-my-version *) Bash(gh auth status) Bash(gh release *) Bash(python3 .claude/skills/release/versions.py) Bash(python3 .claude/skills/release/notes.py *)
 disable-model-invocation: true
 ---
@@ -11,8 +11,9 @@ Bump the version to a major, minor or patch release the user picks, commit and t
 development version and commit that too. The version lives in `src/anki_addons_catalog/__init__.py` (`__version__`)
 and in `.bumpversion.toml` (`current_version`); bump-my-version updates both and commits (`commit = true`). Only the
 release commit gets a tag, through `--tag`: the config has `tag = false` so that the development bump stays untagged.
-This skill pushes only the release tag and publishes a GitHub Release for it. It does not push `main` or deploy: run
-`/push` and `/deploy` afterwards. Work through the steps in order; stop and report if a step can't be completed.
+This skill pushes the release tag and moves GitHub's `main` to the release commit, so `/deploy` sees the release as
+pushed, and publishes a GitHub Release for it. It does not push the development commit or deploy: run `/push` and
+`/deploy` afterwards. Work through the steps in order; stop and report if a step can't be completed.
 
 ## 1. Preconditions
 
@@ -106,16 +107,20 @@ and the tree must be clean.
 
 ## 6. Publish the GitHub Release
 
-Push only the release tag, then publish the Release with one note line per commit since the previous tag:
+Push the release tag and move GitHub's `main` to the release commit (the commit the tag points to, not the
+development commit on top of it), then publish the Release with one note line per commit since the previous tag:
 
 ```bash
-git push origin v<version>
+git push --atomic origin v<version> v<version>^{commit}:refs/heads/main
 python3 .claude/skills/release/notes.py v<version> \
   | gh release create v<version> --verify-tag --title v<version> --notes-file -
 ```
 
-`--verify-tag` stops `gh` from creating a tag on the wrong commit if the tag is not on GitHub. The two bump commits
-stay local until `/push`.
+`--atomic` pushes both refs or neither. Step 1 checked that `origin/main` equals `main`, so the release commit sits
+directly on top of `origin/main` and the push adds only that commit. If the push is rejected (e.g. someone pushed to
+`main` meanwhile), stop and report; never force it. The push starts the Unit-tests workflow on the release commit;
+don't wait for it, since the commit changes only the version. `--verify-tag` stops `gh` from creating a tag on the
+wrong commit if the tag is not on GitHub. The development commit stays local until `/push`.
 
 ## Done
 
