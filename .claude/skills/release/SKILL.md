@@ -1,7 +1,7 @@
 ---
 name: release
 description: Bump the version for a release — show the current version, offer the exact major, minor and patch versions to choose from, bump to the chosen one with bump-my-version, commit and tag it, switch to the next development version (`.dev0`) in a second commit, then push the tag with the release commit as GitHub's `main` and publish a GitHub Release. Requires `main` to be pushed already. Does not push the development commit or deploy. Use when the user says "release", "/release", or asks to bump the version.
-allowed-tools: Bash(git *) Bash(uv run bump-my-version *) Bash(gh auth status) Bash(gh release *) Bash(python3 .claude/skills/release/versions.py) Bash(python3 .claude/skills/release/notes.py *)
+allowed-tools: Bash(git *) Bash(uv run bump-my-version *) Bash(gh release *) Bash(python3 .claude/skills/release/versions.py) Bash(python3 .claude/skills/release/versions.py *) Bash(python3 .claude/skills/release/verify.py *) Bash(python3 .claude/skills/release/notes.py *)
 disable-model-invocation: true
 ---
 
@@ -18,22 +18,14 @@ pushed, and publishes a GitHub Release for it. It does not push the development 
 ## 1. Preconditions
 
 ```bash
-git rev-parse --abbrev-ref HEAD
-git status --porcelain
-git fetch -q origin
-git rev-parse main origin/main
-gh auth status
+python3 .claude/skills/release/verify.py pre
 ```
 
-Stop and report, before any commit is made, if any of these fails:
-
-- The current branch is `main`.
-- `git status` prints nothing: bump-my-version refuses a dirty tree (`allow_dirty = false`). Do not commit on the
-  user's behalf.
-- `main` is pushed: the two `git rev-parse` lines are equal. If not, list the commits that differ
-  (`git log --oneline origin/main..main` and `git log --oneline main..origin/main`) and tell the user to run `/push`
-  first. The released code must have been through `/push`, with its checks and CI, because the Release goes public.
-- `gh auth status` succeeds: step 6 needs it.
+The script fetches `origin` and checks that the current branch is `main`, the tree is clean (bump-my-version refuses
+a dirty tree: `allow_dirty = false`), `main` equals `origin/main`, and `gh` is logged in (step 6 needs it). If any
+line is `FAIL`, stop and report it before any commit is made. Do not commit on the user's behalf. If `main` is not
+pushed, the script lists the commits that differ: tell the user to run `/push` first. The released code must have
+been through `/push`, with its checks and CI, because the Release goes public.
 
 ## 2. Work out the three candidate versions
 
@@ -54,8 +46,9 @@ release v0.2.0). Which version to release?", and three options with the exact ve
 - `0.3.0` (minor): new features
 - `0.2.1` (patch): fixes only
 
-Don't mark a default. If the user picks "Other", accept only a plain `X.Y.Z` that is higher than the last
-release; otherwise ask again.
+Don't mark a default. If the user picks "Other", check their version with
+`python3 .claude/skills/release/versions.py <version>`: accept it only when it prints `ok` (a plain `X.Y.Z` higher
+than the last release); otherwise tell them why and ask again.
 
 ## 4. Bump and commit
 
@@ -73,13 +66,11 @@ match the last tagged version is expected after a `.dev0` version. If anything e
 Then check the result:
 
 ```bash
-git log -1 --stat --format='%h %s'
-git tag --points-at HEAD
-git status --porcelain
-grep -n __version__ src/anki_addons_catalog/__init__.py
+python3 .claude/skills/release/verify.py release <version>
 ```
 
-The commit must touch only those two files, `git tag` must print `v<version>`, and the tree must be clean.
+It checks that `HEAD` is the release commit with the tag `v<version>`, that it touches only those two files, that
+`__version__` is `<version>` and that the tree is clean. If any line is `FAIL`, stop and report.
 
 ## 5. Switch to the next development version
 
@@ -97,13 +88,11 @@ The dry run must show the same two files changing to `<next minor>.dev0` and the
 Then check the result:
 
 ```bash
-git log -2 --stat --format='%h %s'
-git status --porcelain
-grep -n __version__ src/anki_addons_catalog/__init__.py
+python3 .claude/skills/release/verify.py dev <version>
 ```
 
-The release commit and the dev commit must each touch only those two files, `__version__` must end in `.dev0`,
-and the tree must be clean.
+It checks that the untagged dev commit sits on top of the tagged release commit, that each touches only those two
+files, that `__version__` is `<next minor>.dev0` and that the tree is clean. If any line is `FAIL`, stop and report.
 
 ## 6. Publish the GitHub Release
 
