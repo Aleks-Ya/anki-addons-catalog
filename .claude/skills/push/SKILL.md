@@ -1,7 +1,7 @@
 ---
 name: push
 description: Push the main branch and see it through green — verify a clean tree, upgrade deps and run ruff, mypy and pytest locally, push, wait for the GitHub Actions "Unit-tests" workflow and fix any failures, then review SonarCloud issues on the new code and fix them. Does not deploy; that is /deploy. Use when the user says "push", "/push", or asks to push and make sure CI/Sonar are clean.
-allowed-tools: Bash(uv *) Bash(gh run *) Bash(gh api *) Bash(git *) Bash(curl *)
+allowed-tools: Bash(uv *) Bash(gh run *) Bash(gh api *) Bash(git *) Bash(python3 .claude/skills/push/*)
 disable-model-invocation: true
 ---
 
@@ -55,18 +55,16 @@ If the push is rejected and the user hasn't asked to force, stop and report the 
 
 ## 4. Wait for GitHub Actions and check success
 
-The push triggers the **Unit-tests** workflow (TruffleHog → Ruff → Mypy → PyTest → SonarCloud Scan). Find the run
-for the pushed commit; it may take a few seconds to appear:
+The push triggers the **Unit-tests** workflow (TruffleHog → Ruff → Mypy → PyTest → SonarCloud Scan). Watch the run
+for the pushed commit to completion, with a Bash timeout of 600000 ms (if the timeout hits first, run the script
+again: it finds the same run):
 
 ```bash
-gh run list --commit "$(git rev-parse HEAD)" --workflow unit-tests.yml --limit 1 --json databaseId,status,url
+python3 .claude/skills/push/wait_ci.py "$(git rev-parse HEAD)"
 ```
 
-Watch it to completion (blocks until it finishes; exits non-zero on failure):
-
-```bash
-gh run watch <run-id> --exit-status
-```
+It prints the run id and URL, waits for the run to appear and to finish, and exits 0 when the run passed, non-zero
+when it failed and 2 when no run appeared.
 
 If it **fails**, read the failing job with `gh run view <run-id> --log-failed`. Diagnose the failure (failing
 test, ruff or mypy error, TruffleHog secret finding, stale lock, ...), fix it in the working tree, commit it as a
@@ -76,29 +74,28 @@ what failed and what you changed.
 ## 5. Review SonarCloud and fix
 
 The scan publishes to SonarCloud (project `Aleks-Ya_anki-addons-catalog`, org `aleks-ya`). The workflow does not
-wait for the quality gate, so a green run does not mean Sonar is clean. After CI is green, read the report (the
-API is readable anonymously). Always pass `branch=main`: the project's main branch in SonarCloud is an empty
-`master`, so `main` is analyzed as a short-lived branch and queries without `branch` return nothing (gate
-`NONE`, 0 issues). Check that the `main` analysis is for the pushed commit
-(`api/project_branches/list?project=Aleks-Ya_anki-addons-catalog`, field `commit.sha`); it lands about a
-minute after the run finishes.
+wait for the quality gate, so a green run does not mean Sonar is clean. After CI is green, read the report, with a
+Bash timeout of 660000 ms:
 
 ```bash
-curl -s 'https://sonarcloud.io/api/qualitygates/project_status?projectKey=Aleks-Ya_anki-addons-catalog&branch=main' | python3 -m json.tool
-curl -s 'https://sonarcloud.io/api/issues/search?componentKeys=Aleks-Ya_anki-addons-catalog&branch=main&resolved=false&ps=100' | python3 -m json.tool
-curl -s 'https://sonarcloud.io/api/hotspots/search?projectKey=Aleks-Ya_anki-addons-catalog&branch=main&status=TO_REVIEW&ps=100' | python3 -m json.tool
+python3 .claude/skills/push/sonar.py "$(git rev-parse HEAD)"
 ```
 
-Focus on issues and hotspots in the code just pushed (recent `creationDate`, or files in the diff). For each:
+The script waits until SonarCloud has analyzed the pushed commit on `main` (about a minute after the run), then
+prints the quality gate (with any failed conditions) and one line per open issue and hotspot to review, newest first:
+`<created> <severity or hotspot> <rule> <file>:<line> <message>`. It exits 0 when the gate passes and nothing is open,
+1 otherwise, and 2 when the analysis doesn't appear.
 
-- Read the `rule`, `message`, `component` (file) and `line`, and fix the underlying code; don't just silence it.
+Focus on issues and hotspots in the code just pushed (a recent created date, or files in the diff). For each:
+
+- Read the rule, file, line and message, and fix the underlying code; don't just silence it.
 - Suppress inline (`# NOSONAR` with a short reason) only for a genuine false positive, and say so. No local token
   can mark issues "Won't Fix" through the API, so the inline comment is what records the decision.
 - If it's unclear whether to fix or ignore an issue, ask the user.
 - Re-run the local checks before pushing a fix, then loop back through steps 4–5 until CI is green and the new
   code has no open issues.
 
-If the API returns nothing usable, point the user to
+If the script exits 2 or the API returns nothing usable, point the user to
 https://sonarcloud.io/project/issues?id=Aleks-Ya_anki-addons-catalog&branch=main&resolved=false
 
 ## Done
