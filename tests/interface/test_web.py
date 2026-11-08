@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp.server.mcpserver import MCPServer
 
+from anki_addons_catalog import __version__
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.catalog import CatalogService
 from anki_addons_catalog.bootstrap import create_app
@@ -63,7 +64,7 @@ def test_pages_render(make_client: Any, path: str) -> None:
     response = make_client().get(path)
     assert response.status_code == 200, response.text
     assert "Anki Addons Catalog" in response.text
-    assert '<span class="beta"' in response.text
+    assert f'<span class="beta" title="The site is new: expect rough edges">v{__version__} BETA</span>' in response.text
     assert 'class="dataset-date"' in response.text and ">1 Sep 2026</a>" in response.text
 
 

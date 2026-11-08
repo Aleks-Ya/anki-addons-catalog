@@ -1,7 +1,7 @@
 :root { --cards-min: 18rem; }
 .brand { display: inline-flex; align-items: center; gap: .5rem; text-decoration: none; }
 .beta { padding: .1rem .45rem; border: 1px solid var(--pico-primary); border-radius: .3rem;
-        color: var(--pico-primary); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+        color: var(--pico-primary); font-size: .7rem; font-weight: 600; letter-spacing: .05em;
         line-height: 1.4; }
 .dataset-date { padding: .1rem .45rem; border: 1px solid var(--pico-muted-border-color); border-radius: .3rem;
                 color: var(--pico-muted-color); font-size: .7rem; line-height: 1.4; text-decoration: none; white-space: nowrap; }
