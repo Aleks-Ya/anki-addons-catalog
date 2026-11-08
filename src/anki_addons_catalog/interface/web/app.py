@@ -140,6 +140,12 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         except (CatalogUnavailable, ToolFailed):
             return None
 
+    async def addon_count() -> int | None:
+        try:
+            return await ctx.catalog.addon_count()
+        except (CatalogUnavailable, ToolFailed):
+            return None
+
     async def anki_versions() -> list[str]:
         """Suggestions for the Anki version inputs; none when the catalog is down or lacks the list."""
         try:
@@ -154,8 +160,11 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             return None
 
     async def page(request: Request, name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
-        """Renders a page; every page shows the dataset date in the header (skipped when the catalog is down)."""
+        """Renders a page; every page shows the dataset date in the header and the addon count in the default
+        description (both skipped when the catalog is down)."""
         context.setdefault("dataset_date", await dataset_date() if status_code < 500 else None)
+        if "addon_count" not in context:
+            context["addon_count"] = await addon_count() if status_code < 500 else None
         return templates.TemplateResponse(request, name, context, status_code=status_code)
 
     async def search_filters(request: Request) -> SearchFilters:

@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Anki Addons Catalog{% endblock %}</title>
-  <meta name="description" content="{% block description %}Find Anki addons by asking in plain words. AI-powered search over every addon on AnkiWeb, with likes and dislikes, compatibility and maintenance data.{% endblock %}">
+  <meta name="description" content="{% block description %}Find Anki addons by asking in plain words. AI-powered search over {% if addon_count %}{{ "{:,}".format(addon_count) }} addons{% else %}every addon{% endif %} on AnkiWeb, with forks, ratings, compatibility, maintenance data and more.{% endblock %}">
+  <meta property="og:site_name" content="Anki Addons Catalog">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:description" content="{{ self.description() }}">
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="{{ url_for('static', path='app.css').path }}?v={{ static_hash['app.css'] }}">

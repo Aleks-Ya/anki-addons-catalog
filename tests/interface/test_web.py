@@ -76,6 +76,39 @@ def test_index_shows_addon_count(make_client: Any) -> None:
     assert "Ask in plain words across 5 addons." in make_client().get("/").text
 
 
+DEFAULT_DESCRIPTION = ("Find Anki addons by asking in plain words. AI-powered search over {} on AnkiWeb, with forks, "
+                       "ratings, compatibility, maintenance data and more.")
+
+
+@pytest.mark.parametrize("path", ["/", "/about"])
+def test_link_preview_shows_addon_count(make_client: Any, path: str) -> None:
+    html = make_client().get(path).text
+    description = DEFAULT_DESCRIPTION.format("5 addons")
+    assert f'<meta name="description" content="{description}">' in html
+    assert f'<meta property="og:description" content="{description}">' in html
+
+
+def test_home_link_preview_title(make_client: Any) -> None:
+    assert '<meta property="og:title" content="Anki Addons Catalog">' in make_client().get("/").text
+
+
+def test_link_preview_without_addon_count(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from anki_addons_catalog.domain.errors import ToolFailed
+
+    async def failing(self: CatalogService) -> int:
+        raise ToolFailed("get_statistics", "Unavailable")
+
+    monkeypatch.setattr(CatalogService, "addon_count", failing)
+    html = make_client().get("/about").text
+    assert f'<meta property="og:description" content="{DEFAULT_DESCRIPTION.format("every addon")}">' in html
+
+
+def test_addon_link_preview_uses_addon_summary(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{OCCLUSION}").text
+    assert '<meta property="og:title" content="Image Occlusion Plus – Anki addon' in html
+    assert '<meta property="og:description" content="Find Anki addons' not in html
+
+
 def test_cards_show_votes_and_approval(make_client: Any) -> None:
     html = make_client().get("/").text
     assert "300 votes" in html and "98% approval" in html  # Image Occlusion Plus: 298 likes, 2 dislikes
