@@ -6,7 +6,7 @@ from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.catalog import CatalogService
 from anki_addons_catalog.domain.errors import ToolFailed
 from anki_addons_catalog.domain.models import SearchFilters, ToolResult
-from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
+from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, KANJI_COPY, OCCLUSION
 
 pytestmark = pytest.mark.anyio
 
@@ -66,10 +66,10 @@ async def test_unknown_addon_raises(counting: CountingCatalog) -> None:
 async def test_snapshots_stats_changes(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
     assert await service.latest_snapshot() == "2026-09-01"
-    assert (await service.statistics())["aggregation"]["addon_number"] == 5
-    assert await service.addon_count() == 5
+    assert (await service.statistics())["aggregation"]["addon_number"] == 6
+    assert await service.addon_count() == 6
     assert [c["id"] for c in (await service.changes())["added"]] == [KANJI]
-    assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP, FORK, FORK_OF_FORK]
+    assert sorted(await service.all_addon_ids()) == [KANJI, OCCLUSION, HEATMAP, FORK, FORK_OF_FORK, KANJI_COPY]
     assert [c["id"] for c in (await service.by_author("bob"))["items"]] == [OCCLUSION]
 
 
@@ -80,7 +80,7 @@ async def test_search_and_browse_with_filters(counting: CountingCatalog) -> None
         HEATMAP, FORK, FORK_OF_FORK}
     assert (await service.search("heatmap", SearchFilters(hide_forks=True)))["total"] == 0
     browse = await service.browse(SearchFilters(show_obsolete=True, sort="update_date"))
-    assert [c["id"] for c in browse["items"]] == [KANJI, OCCLUSION, FORK, FORK_OF_FORK, HEATMAP]
+    assert [c["id"] for c in browse["items"]] == [KANJI_COPY, KANJI, OCCLUSION, FORK, FORK_OF_FORK, HEATMAP]
     assert [c["id"] for c in (await service.browse(SearchFilters(min_rating=200)))["items"]] == [OCCLUSION]
     old_anki = await service.browse(SearchFilters(anki="2.1.50", show_obsolete=True))
     assert [c["id"] for c in old_anki["items"]] == [HEATMAP, FORK_OF_FORK]

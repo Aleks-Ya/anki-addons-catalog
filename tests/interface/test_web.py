@@ -15,7 +15,7 @@ from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, 
 from anki_addons_catalog.interface.web.app import search_url
 from anki_addons_catalog.interface.web.security import PASS_COOKIE
 from tests.conftest import FakeLlm
-from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
+from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, KANJI_COPY, OCCLUSION
 
 
 def settings(**overrides: Any) -> Settings:
@@ -73,7 +73,7 @@ def test_index_lists_top_addons(make_client: Any) -> None:
 
 
 def test_index_shows_addon_count(make_client: Any) -> None:
-    assert "Ask in plain words across 5 addons." in make_client().get("/").text
+    assert "Ask in plain words across 6 addons." in make_client().get("/").text
 
 
 DEFAULT_DESCRIPTION = ("Find Anki addons by asking in plain words. AI-powered search over {} on AnkiWeb, with forks, "
@@ -83,7 +83,7 @@ DEFAULT_DESCRIPTION = ("Find Anki addons by asking in plain words. AI-powered se
 @pytest.mark.parametrize("path", ["/", "/about"])
 def test_link_preview_shows_addon_count(make_client: Any, path: str) -> None:
     html = make_client().get(path).text
-    description = DEFAULT_DESCRIPTION.format("5 addons")
+    description = DEFAULT_DESCRIPTION.format("6 addons")
     assert f'<meta name="description" content="{description}">' in html
     assert f'<meta property="og:description" content="{description}">' in html
 
@@ -179,6 +179,31 @@ def test_cards_mark_forks(make_client: Any) -> None:
     assert (f'<a class="badge" href="/addon/{HEATMAP}#versions" target="_blank" title="Compare the versions of this addon">'
             '<mark>has 1 fork →</mark></a>') in html
     assert f'href="/addon/{FORK}"' not in make_client().get("/search", params={"nofork": "1"}).text
+
+
+def test_cards_mark_copies(make_client: Any) -> None:
+    html = make_client().get("/search", params={"tag": "dictionary"}).text
+    assert (f'<a class="badge" href="/addon/{KANJI}" target="_blank" title="Open the original addon">'
+            '<mark>copy</mark></a>') in html
+
+
+def test_copy_page_links_its_original(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI_COPY}").text
+    assert f'Copy of <a href="/addon/{KANJI}">Kanji Helper</a>' in html
+    assert 'class="copies"' not in html
+
+
+def test_original_page_lists_its_copies_and_repo_addons(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{KANJI}").text
+    assert f'Copies of this addon: <a href="/addon/{KANJI_COPY}">Stroke Order Reupload</a></p>' in html
+    assert f'<dt>Same repository</dt><dd><a href="/addon/{KANJI_COPY}">Stroke Order Reupload</a></dd>' in html
+    assert "<small>(for the whole repository)</small>" in html and 'class="copy-of"' not in html
+
+
+def test_addon_page_without_copies_or_shared_repo(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{OCCLUSION}").text
+    assert 'class="copy-of"' not in html and 'class="copies"' not in html
+    assert "Same repository" not in html and "for the whole repository" not in html
 
 
 def test_addon_page_renders_readme_safely(make_client: Any) -> None:
@@ -329,7 +354,7 @@ def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> No
 def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
     client = make_client()
     html = client.get("/search").text
-    assert "All addons <small>(4)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
+    assert "All addons <small>(5)</small>" in html and 'id="ai"' not in html and 'name="sort"' in html
     assert f'href="/addon/{HEATMAP}"' in client.get("/search", params={"obsolete": "1", "tag": "statistics"}).text
     assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
 

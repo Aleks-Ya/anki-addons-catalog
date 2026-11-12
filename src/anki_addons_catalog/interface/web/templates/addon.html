@@ -9,6 +9,8 @@
   <p>AnkiWeb addon <code>{{ a.id }}</code>
     {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
   {% if parent %}{% set p, evidence = parent %}<p class="fork-of">Fork of <a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}</p>{% endif %}
+  {% if original %}<p class="copy-of" title="The newest package of this addon is the same file as the original's">Copy of <a href="/addon/{{ original.id }}">{{ original.title }}</a></p>{% endif %}
+  {% if copies %}<p class="copies" title="The newest package of these addons is the same file as this addon's">Copies of this addon: {% for c in copies %}<a href="/addon/{{ c.id }}">{{ c.title }}</a>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}
   {% if family %}{% set others = family.members | length - 1 %}<p class="versions-hint"><strong>{{ others }}</strong> other version{{ "s" if others > 1 }} of this addon exist{{ "s" if others == 1 }}. <a href="#versions">Compare versions ↓</a></p>{% endif %}
 </hgroup>
 {% if a.ai and a.ai.summary %}<blockquote class="summary">{{ a.ai.summary }}<footer><small>AI-generated summary; may contain mistakes.</small></footer></blockquote>{% endif %}
@@ -43,8 +45,9 @@
     {% if gh and gh.user %}
     <dl>
       <dt>Repository</dt><dd><a href="{{ gh.url }}" target="_blank" rel="noopener">{{ gh.user }}/{{ gh.repo }}</a> · <a href="/author/{{ gh.user }}">more by {{ gh.user }}</a></dd>
+      {% if same_repo %}<dt>Same repository</dt><dd>{% for r in same_repo %}<a href="/addon/{{ r.id }}">{{ r.title }}</a>{{ ", " if not loop.last }}{% endfor %}{% if same_repo_more > 0 %} and {{ same_repo_more }} more{% endif %}</dd>{% endif %}
       {% if gh.fork_source %}<dt>Fork of</dt><dd><a href="https://github.com/{{ gh.fork_source }}" target="_blank" rel="noopener">{{ gh.fork_source }}</a></dd>{% endif %}
-      <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.fork_count is not none %} · forks {{ gh.fork_count }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}</dd>
+      <dt>Stars</dt><dd>⭐ {{ gh.stars }}{% if gh.fork_count is not none %} · forks {{ gh.fork_count }}{% endif %}{% if gh.open_issues is not none %} · open issues {{ gh.open_issues }}{% endif %}{% if gh.shared_with %} <small>(for the whole repository)</small>{% endif %}</dd>
       <dt>Last commit</dt><dd>{{ (gh.last_commit or "unknown")[:10] }}</dd>
       {% if gh.license %}<dt>License</dt><dd>{{ gh.license }}</dd>{% endif %}
       {% if gh.languages %}<dt>Languages</dt><dd>{{ gh.languages | join(", ") }}</dd>{% endif %}

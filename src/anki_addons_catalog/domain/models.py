@@ -36,6 +36,8 @@ class AddonCard(BaseModel):
     license: str | None = None
     forked_from: int | None = None  # the addon this one was forked from
     forks: list[int] = []  # addons forked from this one
+    duplicate_of: int | None = None  # the addon this one is a copy of (the same package)
+    duplicates: list[int] = []  # copies of this addon
 
     @classmethod
     def from_details(cls, details: dict[str, Any]) -> "AddonCard":
@@ -50,6 +52,7 @@ class AddonCard(BaseModel):
             ai_summary=ai.get("summary"), ai_tags=ai.get("tags") or [], github_user=github.get("user"), github_repo=github.get("repo"),
             github_stars=github.get("stars"), github_archived=github.get("archived"), license=github.get("license"),
             forked_from=(details.get("forked_from") or {}).get("id"), forks=details.get("forks") or [],
+            duplicate_of=(details.get("duplicate_of") or {}).get("id"), duplicates=details.get("duplicates") or [],
         )
 
 

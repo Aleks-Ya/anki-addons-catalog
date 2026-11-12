@@ -219,6 +219,16 @@ def test_extract_cards_keeps_fork_relations() -> None:
     assert cards[2].forked_from == 1 and cards[2].forks == []
 
 
+def test_extract_cards_keeps_copy_relations() -> None:
+    cards: dict[int, AddonCard] = {}
+    page = {"items": [{"id": 1, "title": "A", "url": "u", "duplicates": [2]}], "total": 1}
+    details = {"id": 2, "anki_web": {"title": "B", "addon_page_url": "u"},
+               "duplicate_of": {"id": 1, "evidence": "same_package"}, "duplicates": []}
+    extract_cards([page, details], cards)
+    assert cards[1].duplicates == [2] and cards[1].duplicate_of is None
+    assert cards[2].duplicate_of == 1 and cards[2].duplicates == []
+
+
 def test_referenced_ids_in_order_without_duplicates() -> None:
     text = f"[B](/addon/{OCCLUSION}) and [A](https://ankiweb.net/shared/info/{KANJI}) and [B](/addon/{OCCLUSION})"
     assert referenced_ids(text) == [OCCLUSION, KANJI]
@@ -268,5 +278,6 @@ def test_with_filters_keeps_forks_the_model_asks_for() -> None:
 
 def test_tool_status_for_forks() -> None:
     assert _tool_status(ToolCall("t", "filter_addons", {"fork_of": 7})) == "Looking for forks of addon 7"
+    assert _tool_status(ToolCall("t", "filter_addons", {"duplicate_of": 7})) == "Looking for copies of addon 7"
     assert _tool_status(ToolCall("t", "filter_addons", {"tags": ["cloze"]})) == "Filtering the catalog"
     assert _tool_status(ToolCall("t", "compare_forks", {"addon_id": 7})) == "Comparing versions of addon 7"

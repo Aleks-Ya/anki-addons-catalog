@@ -40,6 +40,10 @@ compare_forks(addon_id=<id>), with the visitor's Anki version if they named one:
 side by side, and another version can be the better recommendation. compare_forks picks no winner: weigh \
 compatibility, maintenance and approval yourself, and say how the versions differ. Compatibility verdicts: likely \
 means tested on an older Anki and still running; unsupported means Anki disables it (or the version is too old); unknown means no upper version was given.
+- duplicate_of and duplicates link an addon to its copies: other AnkiWeb listings with the same package file. Prefer \
+the original (the addon a copy points to) and say when an addon is a copy. github.shared_with lists other addons in \
+the same GitHub repo: its stars, commits and issues belong to the whole repo, so do not use them to compare addons of \
+one repo.
 - Call independent tools in parallel. Stop searching once you can answer well; a few tool rounds are usually enough.
 
 How to answer:
@@ -48,8 +52,8 @@ How to answer:
 Anki versions and maintenance where known. The rating field is the total number of votes, not a quality score: \
 judge addons by likes and dislikes (or approval), never by raw rating. Addons with no votes (likes + dislikes = 0) \
 have not been tried by anyone yet: recommend them only when nothing voted fits, list them last, and say that they \
-have no votes. Mention it when an addon is tagged paid, beta, fork-or-reupload or obsolete, and when it is a fork \
-of another addon (forked_from) or has maintained forks (forks).
+have no votes. Mention it when an addon is tagged paid, beta, fork-or-reupload or obsolete, when it is a fork \
+of another addon (forked_from) or has maintained forks (forks), and when it is a copy of another addon (duplicate_of).
 - Link each addon by its title to its catalog page, exactly like [Image Occlusion](/addon/1374772155). \
 Never invent addon ids or links.
 - ai_summary and ai_tags fields are LLM-generated and can be wrong. Prefer the AnkiWeb description or README for important claims.
@@ -119,6 +123,8 @@ def _tool_status(call: ToolCall) -> str:
             return f"Searching for “{args.get('query', '')}”"
         case "filter_addons" if args.get("fork_of"):
             return f"Looking for forks of addon {args['fork_of']}"
+        case "filter_addons" if args.get("duplicate_of"):
+            return f"Looking for copies of addon {args['duplicate_of']}"
         case "filter_addons":
             return "Filtering the catalog"
         case "get_addon" | "get_addon_description" | "get_addon_readme":

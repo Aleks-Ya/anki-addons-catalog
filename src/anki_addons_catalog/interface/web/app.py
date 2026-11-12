@@ -52,6 +52,7 @@ EXAMPLES = [
 QUESTIONS_PAGE = 50
 TAG_PAGE = 30
 SEARCH_PAGE = 30
+MAX_RELATED = 10  # linked copies or addons of the same repo on an addon page
 
 
 @dataclass
@@ -152,6 +153,11 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             return await ctx.catalog.anki_versions()
         except (CatalogUnavailable, ToolFailed):
             return []
+
+    async def related(ids: list[int]) -> list[dict[str, Any]]:
+        """Ids and titles of the addons an addon page links to; an addon that fails to load is left out."""
+        found = await asyncio.gather(*(ctx.catalog.addon(i) for i in ids[:MAX_RELATED]), return_exceptions=True)
+        return [{"id": d["id"], "title": d["anki_web"]["title"]} for d in found if not isinstance(d, BaseException)]
 
     async def mcp_version() -> str | None:
         try:
@@ -291,6 +297,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         view("addon")
         details = await ctx.catalog.addon(addon_id)
         relation = details.get("forked_from")
+        copy_of = details.get("duplicate_of")
+        shared_with = (details.get("github") or {}).get("shared_with") or []
         anki = anki.strip()[:20]
         maintenance, similar, readme, description_html, description, family = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
@@ -303,8 +311,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         if family and relation:
             member = next((m for m in family["members"] if m["id"] == relation["id"]), None)
             parent = (member, relation["evidence"]) if member else None
-        compatibility, versions = await asyncio.gather(
-            ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions())
+        compatibility, versions, original, copies, same_repo = await asyncio.gather(
+            ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions(),
+            related([copy_of["id"]] if copy_of else []), related(details.get("duplicates") or []), related(shared_with))
         return await page(request, "addon.html", a=details,
                     maintenance=None if isinstance(maintenance, BaseException) else maintenance,
                     similar=[] if isinstance(similar, BaseException) else similar,
@@ -312,6 +321,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     description_html=None if isinstance(description_html, BaseException) else description_html,
                     description=None if isinstance(description, BaseException) else description,
                     family=family, parent=parent, best=best_values(family["members"]) if family else {},
+                    original=original[0] if original else None, copies=copies, same_repo=same_repo,
+                    same_repo_more=len(shared_with) - len(same_repo),
                     anki=anki, compatibility=compatibility, anki_versions=versions)
 
     @app.get("/addon/{addon_id}/history")
