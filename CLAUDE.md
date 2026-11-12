@@ -8,3 +8,11 @@
   to change and why, then give them a prompt to paste into an AI session in that repository.
 - Write that prompt in terms of the wanted result. Do not include implementation details such as file names, function
   names, code or test instructions: the session in that repository decides them.
+
+# Testing with the real AI
+
+- To check a change that affects AI search (the system prompt, the tools, an MCP server upgrade), ask the real AI a
+  few questions without asking the user first: run the app locally and query `/api/ask`, or use the `/deploy` smoke
+  test. Each question costs a few cents of Claude credits, which the user allows.
+- Ask at most a handful of questions per change, report what they cost, and ask the user before anything that would
+  cost noticeably more.
