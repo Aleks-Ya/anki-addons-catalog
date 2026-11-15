@@ -36,8 +36,8 @@ uv run pytest
 
 - If `uv lock --upgrade` changes `uv.lock` and the checks below pass, commit it without asking, as its own commit
   `Upgrade dependencies` (only `uv.lock`). CI runs `uv sync --locked` and fails on a stale lock.
-- `uv lock --upgrade` can move `anki-addons-mcp` (from PyPI): production runs it in-process, so if it moved, name
-  the old and new versions in the report.
+- `uv lock --upgrade` keeps `anki-addons-mcp`: `pyproject.toml` pins it to an exact version, since a new version of
+  the MCP server can change its tools, its data and the dataset version, and the app has to be adapted to it.
 - If ruff, mypy or pytest **fails**, stop. Do not push. Fix the failures in the working tree, re-run the checks
   until green, and ask before committing the fix.
 

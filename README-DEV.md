@@ -204,12 +204,13 @@ local testing), mode **Managed**. Put the site key into `ANKI_CATALOG_TURNSTILE_
 ### MCP server
 
 By default the catalog runs the [anki-addons-mcp](https://github.com/Aleks-Ya/anki-addons-mcp) server in-process (a
-PyPI dependency, its version in `uv.lock`) and talks to it over MCP's in-memory transport. The server downloads the
-latest dataset snapshot (about 20 MB) from the HF Hub on start, keeps it in memory with a full-text index (the whole
-app takes about 320 MB), reads older snapshots from disk when a page needs them, and checks for a new dataset hourly.
-The startup log says "MCP server: in-process", then "Dataset loaded". Its settings come from its own `ANKI_MCP_*`
-variables. `HF_TOKEN` (a fine-grained read token, https://huggingface.co/settings/tokens) makes the dataset downloads
-count against your account's rate limit instead of the shared IP's.
+PyPI dependency, pinned to an exact version in `pyproject.toml`) and talks to it over MCP's in-memory transport. The
+server downloads the latest dataset snapshot (about 20 MB) from the HF Hub on start, keeps it in memory with a
+full-text index (the whole app takes about 320 MB), reads older snapshots from disk when a page needs them, and
+checks for a new dataset hourly. The startup log says "MCP server: in-process", then "Dataset loaded". Its settings
+come from its own `ANKI_MCP_*` variables. `HF_TOKEN` (a fine-grained read token,
+https://huggingface.co/settings/tokens) makes the dataset downloads count against your account's rate limit instead of
+the shared IP's.
 
 The catalog does not call the [MCP Space](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp) by default: the HF
 proxy answered the catalog Space's requests to it with HTTP 429 (HF's HTML error page, without `RateLimit`
