@@ -11,8 +11,11 @@
 
 # Testing with the real AI
 
+- Run the app locally only through `.claude/skills/update-mcp/local_check.py` (usage in its docstring; the MCP version
+  argument is only for `/update-mcp`), for page checks and AI questions alike. Never start `uv run anki-addons-catalog`
+  by hand: the script picks a free port itself, reports the cost and always stops the app.
 - To check a change that affects AI search (the system prompt, the tools, an MCP server upgrade), ask the real AI a
-  few questions without asking the user first: run the app locally and query `/api/ask`, or use the `/deploy` smoke
-  test. Each question costs a few cents of Claude credits, which the user allows.
+  few questions without asking the user first: with `--ask` of that script, or with the `/deploy` smoke test. Each
+  question costs a few cents of Claude credits, which the user allows.
 - Ask at most a handful of questions per change, report what they cost, and ask the user before anything that would
   cost noticeably more.

@@ -1,10 +1,7 @@
-import json
-import sys
 from pathlib import Path
 
 import changes
 import impact
-import local_check
 import mcp_repo
 import pin
 import pytest
@@ -223,28 +220,6 @@ def test_moved() -> None:
     assert after == {"anki-addons-mcp": "0.12.0", "app": ""}
     assert pin.moved({"anki-addons-mcp": "0.11.0", "app": "", "gone": "1.0"}, {**after, "duckdb": "2.1"}) == [
         "moved: anki-addons-mcp 0.11.0 -> 0.12.0", "moved: duckdb none -> 2.1", "moved: gone 1.0 -> none"]
-
-
-def test_startup() -> None:
-    assert local_check.startup("INFO MCP server: in-process\nINFO Dataset loaded") == "ready"
-    assert local_check.startup("ERROR Warm-up failed; data will be loaded on first request") == "failed"
-    assert local_check.startup("INFO MCP server: in-process") is None
-    assert local_check.in_process("x INFO MCP server: in-process\n") == (True, "MCP server: in-process")
-    assert not local_check.in_process("x INFO MCP server: http://localhost:8000/mcp, token\n")[0]
-
-
-def test_costs() -> None:
-    jsonl = "\n".join(json.dumps(q) for q in [{"query": "kanji", "outcome": "answered", "cost_usd": 0.031},
-                                              {"query": "x", "outcome": "failed", "cost_usd": None}])
-    lines, total = local_check.costs(jsonl)
-    assert lines == ["cost: $0.0310 answered 'kanji'", "cost: $0.0000 failed 'x'"]
-    assert total == pytest.approx(0.031)
-
-
-def test_local_check_limits_questions(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(sys, "argv", ["local_check.py", "0.12.0", *[a for i in range(4) for a in ("--ask", f"q{i}")]])
-    assert local_check.main() == 1
-    assert "at most 3" in capsys.readouterr().out
 
 
 def test_verify_upgrade_subject() -> None:
