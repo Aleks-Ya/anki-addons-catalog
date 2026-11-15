@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set w = a.anki_web %}
+{% block title %}Alternatives to {{ w.title }} – Anki Addons Catalog{% endblock %}
+{% block description %}Anki addons that do the same job as {{ w.title }}, compared by an AI from the catalog data.{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex">
+<link rel="canonical" href="{{ public_url }}/addon/{{ a.id }}/alternatives">
+{% if turnstile_site_key %}<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>{% endif %}
+{% endblock %}
+{% block content %}
+<hgroup>
+  <h1>Alternatives to <a href="/addon/{{ a.id }}">{{ w.title }}</a></h1>
+  <p>AnkiWeb addon <code>{{ a.id }}</code>{% if filters.anki %} · for Anki {{ filters.anki }}{% endif %}</p>
+</hgroup>
+{% include "_ai_answer.html" %}
+{% if similar %}
+<section>
+  <h2>Similar addons <small>(found without AI)</small></h2>
+  {% with cards=similar | map(attribute="card") | list, new_tab=true %}{% include "_cards.html" %}{% endwith %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', path='ask.js').path }}?v={{ static_hash['ask.js'] }}" defer></script>
+{% endblock %}

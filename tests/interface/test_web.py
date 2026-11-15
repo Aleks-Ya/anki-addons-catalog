@@ -150,11 +150,28 @@ def test_versions_use_the_anki_version_of_the_visitor(make_client: Any) -> None:
     assert '<mark class="verdict-unsupported">unsupported</mark>' in versions  # Heatmap Revived needs 25.02
 
 
-@pytest.mark.parametrize(("params", "suffix"), [({}, ""), ({"anki": "25.02"}, "&anki=25.02")])
-def test_alternatives_link_names_the_addon_and_the_anki_version(make_client: Any, params: dict[str, str],
-                                                                suffix: str) -> None:
+@pytest.mark.parametrize(("params", "suffix"), [({}, ""), ({"anki": "25.02"}, "?anki=25.02")])
+def test_alternatives_link_keeps_the_anki_version(make_client: Any, params: dict[str, str], suffix: str) -> None:
     html = make_client().get(f"/addon/{HEATMAP}", params=params).text
-    assert f'href="/search?q=Alternatives%20to%20Review%20Heatmap%20%28addon%20{HEATMAP}%29{suffix}"' in html
+    assert f'href="/addon/{HEATMAP}/alternatives{suffix}"' in html
+
+
+def test_alternatives_page_asks_about_the_addon(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{HEATMAP}/alternatives").text
+    assert "<title>Alternatives to Review Heatmap – Anki Addons Catalog</title>" in html
+    assert f'data-query="Alternatives to Review Heatmap (addon {HEATMAP})"' in html and 'data-filters=""' in html
+    assert '<meta name="robots" content="noindex">' in html
+    assert f'<link rel="canonical" href="https://example.org/addon/{HEATMAP}/alternatives">' in html
+    assert "Similar addons" in html and f'<a href="/addon/{FORK}" target="_blank">' in html
+
+
+def test_alternatives_page_passes_the_anki_version_to_the_ai(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{HEATMAP}/alternatives", params={"anki": "25.02"}).text
+    assert 'data-filters="anki=25.02"' in html and "for Anki 25.02" in html
+
+
+def test_alternatives_of_missing_addon_is_404(make_client: Any) -> None:
+    assert make_client().get("/addon/42/alternatives").status_code == 404
 
 
 def test_addon_page_shows_github_fork_count(make_client: Any) -> None:

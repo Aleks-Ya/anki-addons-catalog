@@ -52,6 +52,7 @@ EXAMPLES = [
 QUESTIONS_PAGE = 50
 TAG_PAGE = 30
 SEARCH_PAGE = 30
+SIMILAR_PAGE = 12
 MAX_RELATED = 10  # linked copies or addons of the same repo on an addon page
 
 
@@ -86,6 +87,11 @@ def search_url(q: str = "", filters: SearchFilters | None = None, offset: int = 
     if offset > 0:
         params.append(("offset", str(offset)))
     return "/search" + ("?" + urlencode(params) if params else "")
+
+
+def alternatives_query(title: str, addon_id: int) -> str:
+    """The AI question of the alternatives page; the same text for every visitor, so the answer cache serves it."""
+    return f"Alternatives to {title} (addon {addon_id})"
 
 
 def _usage_row(c: dict[str, float]) -> dict[str, float]:
@@ -324,6 +330,18 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                     original=original[0] if original else None, copies=copies, same_repo=same_repo,
                     same_repo_more=len(shared_with) - len(same_repo),
                     anki=anki, compatibility=compatibility, anki_versions=versions)
+
+    @app.get("/addon/{addon_id}/alternatives", response_class=HTMLResponse)
+    async def alternatives(request: Request, addon_id: int) -> HTMLResponse:
+        """A short, shareable link to the AI answer about alternatives, with the similar addons below it."""
+        view("alternatives")
+        details, filters = await asyncio.gather(ctx.catalog.addon(addon_id), search_filters(request))
+        try:
+            similar = await ctx.catalog.similar(addon_id, limit=SIMILAR_PAGE)
+        except (CatalogUnavailable, ToolFailed):
+            similar = []  # the AI answer still works without the list
+        return await page(request, "alternatives.html", a=details, filters=filters,
+                          q=alternatives_query(details["anki_web"]["title"], addon_id), similar=similar)
 
     @app.get("/addon/{addon_id}/history")
     async def addon_history(addon_id: int) -> JSONResponse:
