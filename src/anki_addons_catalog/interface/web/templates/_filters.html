@@ -28,6 +28,9 @@
     {% if languages %}
     <fieldset>
       <legend>Programming language <small>(all selected must match)</small></legend>
+      <input type="search" class="filter-find" placeholder="Find a language" aria-label="Find a language"
+             autocomplete="off" hidden>
+      <small class="filter-none" hidden>No language matches.</small>
       <div class="filter-tags">
       {% for lang in languages %}
         <label><input type="checkbox" name="lang" value="{{ lang.name }}" {% if lang.name in filters.languages %}checked{% endif %}>

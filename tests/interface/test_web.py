@@ -434,6 +434,7 @@ def test_search_filters_by_all_chosen_languages(make_client: Any) -> None:
     assert '<input type="checkbox" name="lang" value="Python" checked>' in html  # the catalog's spelling
     assert 'href="/search?lang=JavaScript"' in html  # the chip that removes Python
     assert 'name="lang" value="CSS" >' in html and '<span class="count">4</span>' in html
+    assert '<input type="search" class="filter-find" placeholder="Find a language"' in html  # no name: not sent
     assert f'href="/addon/{FORK_OF_FORK}"' in client.get("/search", params={"lang": "Python"}).text
     html = client.get("/search", params={"q": "kanji", "lang": "Rust"}).text
     assert f'href="/addon/{KANJI}"' not in html
