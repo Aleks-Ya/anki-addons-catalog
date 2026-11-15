@@ -208,9 +208,10 @@ PyPI dependency, pinned to an exact version in `pyproject.toml`) and talks to it
 server downloads the latest dataset snapshot (about 20 MB) from the HF Hub on start, keeps it in memory with a
 full-text index (the whole app takes about 320 MB), reads older snapshots from disk when a page needs them, and
 checks for a new dataset hourly. The startup log says "MCP server: in-process", then "Dataset loaded". Its settings
-come from its own `ANKI_MCP_*` variables. `HF_TOKEN` (a fine-grained read token,
-https://huggingface.co/settings/tokens) makes the dataset downloads count against your account's rate limit instead of
-the shared IP's.
+come from its own `ANKI_MCP_*` variables. Upgrade the pinned version with the skill `/update-mcp`: it reviews what
+the new release changed, proposes how the app should use it and changes the app only after your approval.
+`HF_TOKEN` (a fine-grained read token, https://huggingface.co/settings/tokens) makes the dataset downloads count
+against your account's rate limit instead of the shared IP's.
 
 The catalog does not call the [MCP Space](https://huggingface.co/spaces/Ya-Alex/anki-addons-mcp) by default: the HF
 proxy answered the catalog Space's requests to it with HTTP 429 (HF's HTML error page, without `RateLimit`

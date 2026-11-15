@@ -3,5 +3,5 @@ import sys
 from pathlib import Path
 
 SKILLS = Path(__file__).parents[2] / ".claude" / "skills"
-for skill in ("deploy", "push", "release"):
+for skill in ("deploy", "push", "release", "update-mcp"):
     sys.path.insert(0, str(SKILLS / skill))

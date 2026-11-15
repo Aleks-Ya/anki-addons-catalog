@@ -38,6 +38,7 @@ uv run pytest
   `Upgrade dependencies` (only `uv.lock`). CI runs `uv sync --locked` and fails on a stale lock.
 - `uv lock --upgrade` keeps `anki-addons-mcp`: `pyproject.toml` pins it to an exact version, since a new version of
   the MCP server can change its tools, its data and the dataset version, and the app has to be adapted to it.
+  Upgrade it with `/update-mcp`.
 - If ruff, mypy or pytest **fails**, stop. Do not push. Fix the failures in the working tree, re-run the checks
   until green, and ask before committing the fix.
 
