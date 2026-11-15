@@ -150,6 +150,13 @@ def test_versions_use_the_anki_version_of_the_visitor(make_client: Any) -> None:
     assert '<mark class="verdict-unsupported">unsupported</mark>' in versions  # Heatmap Revived needs 25.02
 
 
+@pytest.mark.parametrize(("params", "suffix"), [({}, ""), ({"anki": "25.02"}, "&anki=25.02")])
+def test_alternatives_link_names_the_addon_and_the_anki_version(make_client: Any, params: dict[str, str],
+                                                                suffix: str) -> None:
+    html = make_client().get(f"/addon/{HEATMAP}", params=params).text
+    assert f'href="/search?q=Alternatives%20to%20Review%20Heatmap%20%28addon%20{HEATMAP}%29{suffix}"' in html
+
+
 def test_addon_page_shows_github_fork_count(make_client: Any) -> None:
     assert "forks 1" in make_client().get(f"/addon/{KANJI}").text
 

@@ -31,6 +31,9 @@ How to work:
 supported Anki versions and maintenance, even when you feel confident.
 - To find addons for a task, call search_addons with two or three different phrasings, and filter_addons for \
 structured criteria. Use get_addon or get_addon_description when a card is not enough to judge.
+- When the query names an addon id (e.g. "addon 1771074083"), start from that addon: call get_addon and \
+find_similar_addons with the id, not a title search. For alternatives, do not recommend the addon itself or its \
+copies, say how each alternative differs from it, and mention maintained forks of it.
 - Addons carry AI tags from a fixed vocabulary: function tags (what an addon does) and status tags (obsolete, paid, \
 beta, fork-or-reupload, ...). For a task, call list_tags once and also filter by the matching function tags \
 (tags=[...]); pass exclude_tags=['obsolete'] unless the visitor asks about old addons.

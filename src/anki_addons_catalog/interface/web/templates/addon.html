@@ -19,7 +19,7 @@
   <a role="button" href="{{ w.addon_page_url }}" target="_blank" rel="noopener">Open on AnkiWeb</a>
   {% if gh and gh.url %}<a role="button" class="secondary" href="{{ gh.url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}
   {% if forum and forum.anki_forum_url %}<a role="button" class="secondary" href="{{ forum.anki_forum_url }}" target="_blank" rel="noopener">Forum topic</a>{% endif %}
-  <a role="button" class="outline" href="/search?q={{ ('Addons similar to ' ~ w.title) | urlencode }}">Ask about alternatives</a>
+  <a role="button" class="outline" href="/search?q={{ ('Alternatives to ' ~ w.title ~ ' (addon ' ~ a.id ~ ')') | urlencode }}{% if anki %}&anki={{ anki | urlencode }}{% endif %}">Ask about alternatives</a>
 </p>
 
 <div class="grid facts">
