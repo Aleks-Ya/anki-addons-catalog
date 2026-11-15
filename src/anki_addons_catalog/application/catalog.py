@@ -10,6 +10,7 @@ TOP_METRICS = {
     "rating": "Highest rated", "likes": "Most liked", "stars": "Most GitHub stars",
     "forum_posts": "Most discussed on the Anki Forum", "recently_updated": "Recently updated",
 }
+NONE_GROUP = "(none)"  # get_statistics' group of addons without a value
 STAT_GROUPS = ["license", "primary_language", "package_language", "description_language", "anki_version", "update_year", "ai_tag"]
 __all__ = ["OBSOLETE_TAG", "TOP_METRICS", "CatalogService"]
 
@@ -94,6 +95,12 @@ class CatalogService:
     async def statistics(self) -> dict[str, Any]:
         stats: dict[str, Any] = await self.call("get_statistics", group_by=STAT_GROUPS, top_values=15)
         return stats
+
+    async def languages(self) -> list[dict[str, Any]]:
+        """Every language found in addons, most used first; an addon counts once for each language it contains."""
+        stats = await self.call("get_statistics", group_by=["language"], top_values=200)
+        counts: dict[str, int] = stats["groups"][0]["counts"]
+        return [{"name": name, "addon_count": count} for name, count in counts.items() if name != NONE_GROUP]
 
     async def addon_count(self) -> int:
         stats = await self.call("get_statistics")  # no group_by: only the cheap aggregation

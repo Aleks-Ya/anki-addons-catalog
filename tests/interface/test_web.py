@@ -422,9 +422,23 @@ def test_search_url_keeps_filters() -> None:
 
 def test_ask_applies_filters(make_client: Any) -> None:
     llm = scripted_llm()
-    make_client(llm).get("/api/ask", params={"q": "kanji", "anki": "25.09", "tag": "dictionary"})
+    make_client(llm).get("/api/ask", params={"q": "kanji", "anki": "25.09", "tag": "dictionary", "lang": "Python"})
     assert "Visitor filters" in llm.requests[0][0]["content"]
-    assert "Anki 25.09, dictionary" in llm.requests[0][0]["content"]
+    assert "Anki 25.09, dictionary, Language: Python" in llm.requests[0][0]["content"]
+
+
+def test_search_filters_by_all_chosen_languages(make_client: Any) -> None:
+    client = make_client()
+    html = client.get("/search", params={"lang": ["python", "JavaScript"]}).text
+    assert f'href="/addon/{KANJI}"' in html and f'href="/addon/{FORK_OF_FORK}"' not in html
+    assert '<input type="checkbox" name="lang" value="Python" checked>' in html  # the catalog's spelling
+    assert 'href="/search?lang=JavaScript"' in html  # the chip that removes Python
+    assert 'name="lang" value="CSS" >' in html and '<span class="count">4</span>' in html
+    assert f'href="/addon/{FORK_OF_FORK}"' in client.get("/search", params={"lang": "Python"}).text
+    html = client.get("/search", params={"q": "kanji", "lang": "Rust"}).text
+    assert f'href="/addon/{KANJI}"' not in html
+    assert '<input type="checkbox" name="lang" value="Rust" checked>' in html  # unknown, but can be cleared
+    assert '<input type="hidden" name="lang" value="Rust">' in html  # a new question keeps the filter
 
 
 def test_tags_page_lists_categories(make_client: Any) -> None:

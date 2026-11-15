@@ -2,7 +2,7 @@ from datetime import date
 
 from starlette.datastructures import QueryParams
 
-from anki_addons_catalog.domain.models import SearchFilters
+from anki_addons_catalog.domain.models import MAX_LANGUAGES, SearchFilters
 
 
 def parse(query: str) -> SearchFilters:
@@ -17,11 +17,12 @@ def test_empty_url_hides_obsolete_only() -> None:
 
 
 def test_parse_and_params_round_trip() -> None:
-    query = "anki=25.09&tag=statistics&tag=cloze&obsolete=1&nopaid=1&nofork=1&recent=1&active=1&github=1&rating=50&sort=likes"
+    query = "anki=25.09&tag=statistics&tag=cloze&lang=Python&lang=C%2B%2B&obsolete=1&nopaid=1&nofork=1&recent=1&active=1&github=1&rating=50&sort=likes"
     filters = parse(query)
     assert QueryParams(filters.params()) == QueryParams(query)
     assert filters.tool_args(date(2026, 10, 1)) == {
-        "compatible_with_anki": "25.09", "tags": ["statistics", "cloze"], "exclude_tags": ["paid"], "is_fork": False,
+        "compatible_with_anki": "25.09", "tags": ["statistics", "cloze"], "language": ["Python", "C++"],
+        "exclude_tags": ["paid"], "is_fork": False,
         "updated_after": "2024-10-01", "archived": False, "has_github": True, "min_rating": 50}
 
 
@@ -45,3 +46,20 @@ def test_sort_is_left_out_on_request() -> None:
 def test_hide_forks_chip() -> None:
     filters = parse("nofork=1")
     assert filters.hide_forks and [label for label, _ in filters.chips()] == ["No forks"]
+
+
+def test_languages_keep_the_first_spelling_and_drop_invalid_values() -> None:
+    filters = parse("lang=python&lang=Common%20Lisp&lang=Python&lang=%3Cb%3E&lang=")
+    assert filters.languages == ["python", "Common Lisp"]
+
+
+def test_languages_are_capped() -> None:
+    assert len(parse("&".join(f"lang=L{i}" for i in range(MAX_LANGUAGES + 5))).languages) == MAX_LANGUAGES
+
+
+def test_language_chips_remove_one_language_each() -> None:
+    filters = parse("lang=Python&lang=JavaScript")
+    chips = dict(filters.chips())
+    assert list(chips) == ["Language: Python", "Language: JavaScript"]
+    assert chips["Language: Python"].languages == ["JavaScript"]
+    assert filters.describe() == "obsolete hidden, Language: Python, Language: JavaScript"

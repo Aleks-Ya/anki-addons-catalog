@@ -279,6 +279,13 @@ def test_with_filters_joins_tags_and_overrides_the_rest() -> None:
                                             "exclude_tags": ["obsolete", "paid"], "min_rating": 50}
 
 
+def test_with_filters_joins_languages() -> None:
+    visitor = {"language": ["Python"]}
+    assert with_filters({"language": "JavaScript"}, visitor) == {"language": ["JavaScript", "Python"]}
+    assert with_filters({"language": ["Python", "CSS"]}, visitor) == {"language": ["Python", "CSS"]}
+    assert with_filters({"query": "x"}, visitor) == {"query": "x", "language": ["Python"]}
+
+
 def test_with_filters_keeps_forks_the_model_asks_for() -> None:
     assert with_filters({"fork_of": 7}, {"is_fork": False, "min_rating": 50}) == {"fork_of": 7, "min_rating": 50}
     assert with_filters({"query": "x"}, {"is_fork": False}) == {"query": "x", "is_fork": False}

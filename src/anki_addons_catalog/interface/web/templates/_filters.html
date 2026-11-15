@@ -25,6 +25,17 @@
       <label><input type="checkbox" name="nofork" value="1" {% if filters.hide_forks %}checked{% endif %}> Hide forks</label>
       <label><input type="checkbox" name="obsolete" value="1" {% if filters.show_obsolete %}checked{% endif %}> Show obsolete</label>
     </fieldset>
+    {% if languages %}
+    <fieldset>
+      <legend>Programming language <small>(all selected must match)</small></legend>
+      <div class="filter-tags">
+      {% for lang in languages %}
+        <label><input type="checkbox" name="lang" value="{{ lang.name }}" {% if lang.name in filters.languages %}checked{% endif %}>
+          {{ lang.name }}{% if lang.addon_count %} <span class="count">{{ lang.addon_count }}</span>{% endif %}</label>
+      {% endfor %}
+      </div>
+    </fieldset>
+    {% endif %}
     <fieldset>
       <legend>Categories <small>(all selected must match)</small></legend>
       <div class="filter-tags">

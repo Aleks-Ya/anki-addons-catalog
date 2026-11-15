@@ -13,8 +13,10 @@ SORTS = {"rating": "Best rated", "likes": "Likes", "stars": "GitHub stars", "upd
 MIN_RATINGS = (10, 50, 200)
 RECENT_DAYS = 730
 MAX_TAGS = 10
+MAX_LANGUAGES = 10
 _ANKI_VERSION = re.compile(r"\d+(\.\d+){1,2}([ab]\d+)?")
 _TAG = re.compile(r"[a-z0-9][a-z0-9-]*")
+_LANGUAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 +#.'-]{0,39}")  # GitHub Linguist names, e.g. C++, Common Lisp
 
 
 class AddonCard(BaseModel):
@@ -115,6 +117,7 @@ class SearchFilters(BaseModel):
     Defaults are what an empty URL means: obsolete addons are hidden, everything else is shown."""
     anki: str | None = None
     tags: list[str] = []
+    languages: list[str] = []  # the addon must contain all of them
     show_obsolete: bool = False
     hide_paid: bool = False
     hide_forks: bool = False
@@ -129,8 +132,13 @@ class SearchFilters(BaseModel):
         """From URL query parameters (a Starlette QueryParams or a multi-dict); invalid values are dropped."""
         anki = (params.get("anki") or "").strip()
         tags = [t for t in dict.fromkeys(t.strip().lower() for t in params.getlist("tag")) if _TAG.fullmatch(t)]
+        languages: dict[str, str] = {}  # by lower case: GitHub Linguist names are matched ignoring case
+        for lang in (lang.strip() for lang in params.getlist("lang")):
+            if _LANGUAGE.fullmatch(lang):
+                languages.setdefault(lang.lower(), lang)
         rating = params.get("rating", "")
         return cls(anki=anki if _ANKI_VERSION.fullmatch(anki) else None, tags=tags[:MAX_TAGS],
+                   languages=list(languages.values())[:MAX_LANGUAGES],
                    show_obsolete=params.get("obsolete") == "1", hide_paid=params.get("nopaid") == "1",
                    hide_forks=params.get("nofork") == "1",
                    recent=params.get("recent") == "1", not_archived=params.get("active") == "1",
@@ -142,6 +150,7 @@ class SearchFilters(BaseModel):
         """The URL query parameters, the inverse of `parse` (defaults are left out)."""
         items: list[tuple[str, str]] = [("anki", self.anki)] if self.anki else []
         items += [("tag", t) for t in self.tags]
+        items += [("lang", lang) for lang in self.languages]
         flags = {"obsolete": self.show_obsolete, "nopaid": self.hide_paid, "nofork": self.hide_forks, "recent": self.recent,
                  "active": self.not_archived, "github": self.has_github}
         items += [(name, "1") for name, on in flags.items() if on]
@@ -157,6 +166,8 @@ class SearchFilters(BaseModel):
         if self.anki:
             chips.append((f"Anki {self.anki}", self.model_copy(update={"anki": None})))
         chips += [(t, self.model_copy(update={"tags": [x for x in self.tags if x != t]})) for t in self.tags]
+        chips += [(f"Language: {lang}", self.model_copy(update={"languages": [x for x in self.languages if x != lang]}))
+                  for lang in self.languages]
         labels = {"show_obsolete": "Obsolete shown", "hide_paid": "No paid", "hide_forks": "No forks", "recent": "Updated in 2 years",
                   "not_archived": "Not archived", "has_github": "On GitHub"}
         chips += [(label, self.model_copy(update={name: False})) for name, label in labels.items()
@@ -177,6 +188,8 @@ class SearchFilters(BaseModel):
             args["compatible_with_anki"] = self.anki
         if self.tags:
             args["tags"] = list(self.tags)
+        if self.languages:
+            args["language"] = list(self.languages)
         exclude = ([] if self.show_obsolete else [OBSOLETE_TAG]) + ([PAID_TAG] if self.hide_paid else [])
         if exclude:
             args["exclude_tags"] = exclude

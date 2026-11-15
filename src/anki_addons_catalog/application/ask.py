@@ -77,7 +77,7 @@ _SPACES = re.compile(r"\s+")
 FILTERED_TOOLS = {"search_addons", "filter_addons"}
 THIN_CARD_TOOLS = {"compare_forks"}  # its members look like cards but lack the summary, tags and update date
 MAX_LOADED_CARDS = 10
-_MERGED_ARGS = {"tags", "exclude_tags"}
+_MERGED_ARGS = {"tags", "exclude_tags", "language"}
 
 Emit = Callable[[AnswerEvent], Awaitable[None]]
 
@@ -113,12 +113,14 @@ def referenced_ids(markdown: str) -> list[int]:
 
 
 def with_filters(arguments: dict[str, Any], filters: dict[str, Any]) -> dict[str, Any]:
-    """The model's tool arguments narrowed by the visitor's filters: tag lists are joined, other filters win."""
+    """The model's tool arguments narrowed by the visitor's filters: tag and language lists are joined, other
+    filters win."""
     merged = {**arguments, **filters}
     if "fork_of" in arguments:
         merged.pop("is_fork", None)  # the visitor's "hide forks" would hide every fork the model asks for
     for name in _MERGED_ARGS & arguments.keys() & filters.keys():
-        merged[name] = list(dict.fromkeys([*arguments[name], *filters[name]]))
+        own = arguments[name] if isinstance(arguments[name], list) else [arguments[name]]  # language takes one name too
+        merged[name] = list(dict.fromkeys([*own, *filters[name]]))
     return merged
 
 

@@ -160,6 +160,13 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         except (CatalogUnavailable, ToolFailed):
             return []
 
+    async def languages() -> list[dict[str, Any]]:
+        """The languages for the filter panel; none when the catalog is down or lacks the statistics."""
+        try:
+            return await ctx.catalog.languages()
+        except (CatalogUnavailable, ToolFailed):
+            return []
+
     async def related(ids: list[int]) -> list[dict[str, Any]]:
         """Ids and titles of the addons an addon page links to; an addon that fails to load is left out."""
         found = await asyncio.gather(*(ctx.catalog.addon(i) for i in ids[:MAX_RELATED]), return_exceptions=True)
@@ -235,14 +242,21 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         view("search")
         if q:
             ctx.usage.add(u.KEYWORD_SEARCH)
-        results, all_tags, versions = await asyncio.gather(
+        results, all_tags, versions, all_languages = await asyncio.gather(
             ctx.catalog.search(q, filters, limit=SEARCH_PAGE, offset=offset) if q
             else ctx.catalog.browse(filters, limit=SEARCH_PAGE, offset=offset),
-            ctx.catalog.tags(), anki_versions())
+            ctx.catalog.tags(), anki_versions(), languages())
         function_tags = sorted((t for t in all_tags if t["group"] == "function"),
                                key=lambda t: (t["name"] not in filters.tags, -t.get("addon_count", 0), t["name"]))
+        # The catalog's spelling of the chosen languages, so their checkboxes are checked; an unknown one has no count.
+        known = {lang["name"].lower(): lang["name"] for lang in all_languages}
+        filters = filters.model_copy(update={"languages": [known.get(x.lower(), x) for x in filters.languages]})
+        all_languages += [{"name": x} for x in filters.languages if x.lower() not in known]
+        language_options = sorted(all_languages, key=lambda x: (x["name"] not in filters.languages,
+                                                               -x.get("addon_count", 0), x["name"]))
         return await page(request, "search.html", q=q, results=results, offset=offset, page_size=SEARCH_PAGE,
-                          filters=filters, function_tags=function_tags, anki_versions=versions)
+                          filters=filters, function_tags=function_tags, anki_versions=versions,
+                          languages=language_options)
 
     @app.post("/api/verify")
     async def verify(request: Request, token: str = Form("")) -> Response:

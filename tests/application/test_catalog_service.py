@@ -102,3 +102,9 @@ async def test_anki_versions_newest_first(counting: CountingCatalog) -> None:
     assert await service.anki_versions() == ["25.09.2", "25.09", "2.1.66"]
     await service.anki_versions()
     assert counting.calls == ["list_anki_versions"]
+
+
+async def test_languages_most_used_first_without_none(counting: CountingCatalog) -> None:
+    service = CatalogService(counting)
+    assert await service.languages() == [{"name": "Python", "addon_count": 5}, {"name": "CSS", "addon_count": 4},
+                                         {"name": "JavaScript", "addon_count": 1}]
