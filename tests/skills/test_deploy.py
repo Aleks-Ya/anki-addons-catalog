@@ -2,6 +2,7 @@ import json
 
 import check_build
 import plan_push
+import preconditions
 import pytest
 import smoke
 from space import TARGETS, get_target
@@ -31,6 +32,18 @@ def test_check_build_cached_copy_of_changed_files(monkeypatch: pytest.MonkeyPatc
 def test_check_build_other_commit() -> None:
     assert check_build.check(build_log("c" * 40), TARGET, PREVIOUS) == ["the latest build is for ccccccc, not aaaaaaa"]
     assert check_build.check([], TARGET, PREVIOUS) == ["no build found in the log"]
+
+
+def test_preconditions_committed() -> None:
+    assert preconditions.committed("") == (True, "clean tree")
+    assert preconditions.committed("M src/app.py\n M tests/a.py\n?? notes.txt") == (
+        False, "M src/app.py, M tests/a.py, ?? notes.txt")
+
+
+@pytest.mark.parametrize(("remote_ok", "clean", "code"), [(True, True, 0), (False, True, 1), (False, False, 1),
+                                                          (True, False, 2)])
+def test_preconditions_exit_code(remote_ok: bool, clean: bool, code: int) -> None:
+    assert preconditions.exit_code(remote_ok, clean) == code
 
 
 def test_get_target() -> None:

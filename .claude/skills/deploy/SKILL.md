@@ -10,7 +10,8 @@ disable-model-invocation: true
 Deploy a version of `main` to the HuggingFace Space (README-DEV.md → "Deploy to a HuggingFace Space") and verify
 that the Space runs the pushed commit. The user picks the version: usually the development head of `main` (local or
 on GitHub) or the latest release (the commit `/release` made before switching to the next `.dev0` version), but any
-commit can be deployed, pushed to GitHub or not. It deploys commits only and does not commit or fix code itself.
+commit can be deployed, pushed to GitHub or not. It deploys commits only: when step 1 finds uncommitted changes, it
+asks whether to commit them first. Apart from that, it does not commit or fix code itself.
 It runs no CI or local checks (lint, types, tests) before pushing: it just deploys the chosen commit.
 Work through the steps in order; stop and report if a step can't be completed.
 
@@ -32,11 +33,26 @@ The Space page is `https://huggingface.co/spaces/<SPACE>`.
 
 ## 1. Preconditions
 
-Only committed code is deployed. If `git status --porcelain` prints anything, mention that uncommitted changes
-won't be deployed, but don't stop and don't commit on the user's behalf.
+```bash
+uv run python .claude/skills/deploy/preconditions.py <ENV>
+```
 
-Confirm the remote exists (`git remote get-url <REMOTE>`). If it is missing, stop and point the user to the
-setup in README-DEV.md (`git remote add <REMOTE> https://huggingface.co/spaces/<SPACE>`).
+The script prints one `PASS` or `FAIL` line per check: `remote` (the Space remote exists) and `committed` (nothing
+is uncommitted, else the files).
+
+- Exit 0: continue with step 2.
+- Exit 1: the remote is missing. Stop and point the user to the setup in README-DEV.md (the `git remote add` command
+  the script prints).
+- Exit 2: there are uncommitted changes, and only commits can be deployed. Stop and use AskUserQuestion, with the
+  files in the question, e.g. "These changes are not committed and would not be deployed: M src/app.py. Commit them
+  first?". Options, with no default:
+  - `Commit and deploy`: stage the tracked changes (`git add -u`; add untracked `??` files only if the user names
+    them) and commit them on the current branch, with a message written from the diff in the style of the
+    repository's commits (a short imperative subject, a body that says what changed and why). Run the script again;
+    it must exit 0. In step 2 the new commit is the `local` candidate on `main`; on another branch, offer `HEAD` as
+    well. Run no checks and don't push to GitHub (`/push` does that).
+  - `Deploy without them`: continue with step 2. The changes are not deployed.
+  - `Stop`: stop.
 
 ## 2. Pick the version to deploy
 
@@ -169,4 +185,6 @@ If a check fails, report the output and point the user to the **Logs** tab of th
 ## Done
 
 Report the target, the deployed version and commit SHA (and the previous ones the Space ran), the runtime stage, the
-build check (and any factory rebuild) and the smoke-test results, or the first step that failed and why.
+build check (and any factory rebuild) and the smoke-test results, or the first step that failed and why. If step 1
+made a commit, give its sha and subject; if the user chose to deploy without their uncommitted changes, say again
+that they are not deployed.
