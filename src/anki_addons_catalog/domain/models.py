@@ -50,7 +50,8 @@ class AddonCard(BaseModel):
             rating=anki_web.get("rating", 0), likes=anki_web.get("likes", 0), dislikes=anki_web.get("dislikes", 0),
             update_date=anki_web.get("update_date"), anki_version=anki_web.get("anki_version"),
             ai_summary=ai.get("summary"), ai_tags=ai.get("tags") or [], github_user=github.get("user"), github_repo=github.get("repo"),
-            github_stars=github.get("stars"), github_archived=github.get("archived"), license=github.get("license"),
+            github_stars=github.get("stars"), github_archived=github.get("archived"),
+            license=(details.get("license") or {}).get("spdx_id"),
             forked_from=(details.get("forked_from") or {}).get("id"), forks=details.get("forks") or [],
             duplicate_of=(details.get("duplicate_of") or {}).get("id"), duplicates=details.get("duplicates") or [],
         )

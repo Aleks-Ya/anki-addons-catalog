@@ -184,6 +184,37 @@ def test_addon_page_shows_package_languages(make_client: Any, addon_id: int, lan
     assert f"<dt>Languages</dt><dd>{languages}</dd>" in html
 
 
+def test_addon_page_shows_github_languages(make_client: Any) -> None:
+    assert "<dt>Languages</dt><dd>Python, CSS</dd>" in make_client().get(f"/addon/{FORK}").text
+
+
+@pytest.mark.parametrize(("addon_id", "license_text"), [
+    (KANJI, "MIT <small>(from the license file in the package)</small>"),
+    (OCCLUSION, "GPL-3.0 <small>(from the README)</small>"),
+    (HEATMAP, "Not found <small>(this does not mean that the addon has no license)</small>"),
+])
+def test_addon_page_shows_license_with_source(make_client: Any, addon_id: int, license_text: str) -> None:
+    assert f"<dt>License</dt><dd>{license_text}</dd>" in make_client().get(f"/addon/{addon_id}").text
+
+
+def test_addon_page_explains_unrecognized_github_license(make_client: Any) -> None:
+    html = make_client().get(f"/addon/{OCCLUSION}").text
+    assert "<dd>A license file that GitHub does not recognize</dd>" in html
+    assert "NOASSERTION" not in html
+
+
+@pytest.mark.parametrize(("addon_id", "scan"), [(KANJI, "No ClamAV match"),
+                                                (FORK_OF_FORK, "ClamAV matched: PUA.Win.Packer.Upx-1")])
+def test_addon_page_shows_virus_scan(make_client: Any, addon_id: int, scan: str) -> None:
+    html = make_client().get(f"/addon/{addon_id}").text
+    assert f"<dt>Virus scan</dt><dd>{scan}" in html
+    assert "No match does not prove that the code is safe." in html
+
+
+def test_addon_page_without_package_has_no_virus_scan(make_client: Any) -> None:
+    assert "Virus scan" not in make_client().get(f"/addon/{HEATMAP}").text
+
+
 def test_addon_without_forks_has_no_versions(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI}").text
     assert 'id="versions"' not in html and "versions-hint" not in html and 'class="fork-of"' not in html

@@ -209,6 +209,14 @@ def test_extract_cards_keeps_ai_tags() -> None:
     assert cards[2].ai_tags == ["cloze", "beta"]
 
 
+def test_extract_cards_takes_the_addon_license_not_github_license() -> None:
+    cards: dict[int, AddonCard] = {}
+    details = {"id": 1, "anki_web": {"title": "A", "addon_page_url": "u"}, "github": {"license": "NOASSERTION"},
+               "license": {"spdx_id": "MIT", "source": "package_file"}}
+    extract_cards(details, cards)
+    assert cards[1].license == "MIT"
+
+
 def test_extract_cards_keeps_fork_relations() -> None:
     cards: dict[int, AddonCard] = {}
     page = {"items": [{"id": 1, "title": "A", "url": "u", "forks": [2]}], "total": 1}
