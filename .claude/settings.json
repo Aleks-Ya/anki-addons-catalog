@@ -4,6 +4,9 @@
       "../anki-addons-mcp",
       "../anki-addons-dataset"
     ],
+    "allow": [
+      "Bash(uv run python .claude/skills/update-mcp/pin.py *)"
+    ],
     "deny": [
       "Edit(~/pr/home/anki-addons-mcp/**)",
       "Edit(~/pr/home/anki-addons-dataset/**)"
