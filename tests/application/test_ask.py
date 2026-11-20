@@ -209,6 +209,21 @@ def test_extract_cards_keeps_ai_tags() -> None:
     assert cards[2].ai_tags == ["cloze", "beta"]
 
 
+def test_extract_cards_keeps_ai_development() -> None:
+    cards: dict[int, AddonCard] = {}
+    page = {"items": [{"id": 1, "title": "A", "url": "u", "ai_development": {"tooling": ["cursor"]}},
+                      {"id": 2, "title": "B", "url": "u"}], "total": 2}
+    details = {"id": 3, "anki_web": {"title": "C", "addon_page_url": "u", "ai_declaration_markers": ["vibe-coded"]},
+               "github": {"ai_tooling_markers": ["claude-code"]}}
+    plain = {"id": 4, "anki_web": {"title": "D", "addon_page_url": "u", "ai_declaration_markers": []},
+             "github": {"ai_tooling_markers": []}}
+    extract_cards([page, details, plain], cards)
+    assert cards[1].ai_development == {"tooling": ["cursor"]}
+    assert cards[2].ai_development is None
+    assert cards[3].ai_development == {"tooling": ["claude-code"], "declaration": ["vibe-coded"]}
+    assert cards[4].ai_development is None
+
+
 def test_extract_cards_takes_the_addon_license_not_github_license() -> None:
     cards: dict[int, AddonCard] = {}
     details = {"id": 1, "anki_web": {"title": "A", "addon_page_url": "u"}, "github": {"license": "NOASSERTION"},

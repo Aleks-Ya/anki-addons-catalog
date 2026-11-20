@@ -7,7 +7,8 @@
 <hgroup>
   <h1>{{ w.title }}</h1>
   <p>AnkiWeb addon <code>{{ a.id }}</code>
-    {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}</p>
+    {% if gh and gh.archived %}<mark>GitHub repository archived</mark>{% endif %}
+    {% if ai_reasons %}<mark title="{{ ai_reasons | join(' ') }}">Built with AI</mark>{% endif %}</p>
   {% if parent %}{% set p, evidence = parent %}<p class="fork-of">Fork of <a href="/addon/{{ p.id }}">{{ p.title }}</a>{% if evidence == "ai" %} <small title="Detected by an AI reading the description">(AI-detected; may be wrong)</small>{% endif %}</p>{% endif %}
   {% if original %}<p class="copy-of" title="The newest package of this addon is the same file as the original's">Copy of <a href="/addon/{{ original.id }}">{{ original.title }}</a></p>{% endif %}
   {% if copies %}<p class="copies" title="The newest package of these addons is the same file as this addon's">Copies of this addon: {% for c in copies %}<a href="/addon/{{ c.id }}">{{ c.title }}</a>{{ ", " if not loop.last }}{% endfor %}</p>{% endif %}

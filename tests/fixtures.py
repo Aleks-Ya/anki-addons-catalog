@@ -21,6 +21,7 @@ TAGS = [
     Tag(name="dictionary", group="function", description="Lookup, definitions, translation"),
     Tag(name="image-occlusion", group="function", description="Image occlusion"),
     Tag(name="statistics", group="function", description="Graphs, heatmaps, retention"),
+    Tag(name="ai", group="function", description="LLM-powered features"),
     Tag(name="obsolete", group="status", description="Built into Anki now, or no longer working"),
     Tag(name="paid", group="status", description="Patreon-only, Pro tiers, subscriptions"),
 ]
@@ -35,7 +36,8 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
            fork_source: str | None = None, languages: list[str] | None = None, repo: str | None = None,
            duplicate_of: dict[str, Any] | None = None, duplicates: list[int] | None = None,
            shared_with: list[int] | None = None, github_license: str = "MIT",
-           license: tuple[str, str] | None = None, clamav: list[str] | None = None) -> AddonDetails:
+           license: tuple[str, str] | None = None, clamav: list[str] | None = None,
+           ai_tooling: list[str] | None = None, ai_declaration: list[str] | None = None) -> AddonDetails:
     record: dict[str, Any] = {
         "id": addon_id,
         "anki_web": {
@@ -47,6 +49,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
                           "min_point_version": to_point(anki_version), "max_version_kind": "open"}],
             "links": [{"url": f"https://example.com/{addon_id}", "section": "description", "count": 1,
                        "texts": ["site"]}], "description_language": "en", "description_pre_wrap": pre_wrap,
+            "ai_declaration_markers": ai_declaration or [],
         },
         "github": {
             "user": user, "repo": repo or title.lower().replace(" ", "-"), "stars": stars, "license": github_license,
@@ -54,6 +57,7 @@ def _addon(addon_id: int, title: str, *, likes: int, dislikes: int, update_date:
             "tests_count": 3, "fork_count": 1,
             "open_issues": 0, "topics": [title.split()[0].lower()], "fork_source": fork_source,
             "shared_with": shared_with or [], "repo_sharing": "same_author" if shared_with else None,
+            "ai_tooling_markers": ai_tooling or [],
         } if user else None,
         "forked_from": forked_from,
         "forks": forks or [],
@@ -77,14 +81,14 @@ def latest_addons() -> list[AddonDetails]:
         _addon(KANJI, "Kanji Helper", likes=118, dislikes=2, update_date="2026-08-20", anki_version="25.02~",
                summary="Shows kanji stroke order.", description="Kanji stroke order and readings.", tags=["dictionary"],
                user="alice", stars=50, languages=["Python", "JavaScript"], duplicates=[KANJI_COPY],
-               license=("MIT", "package_file"), clamav=[],
+               license=("MIT", "package_file"), clamav=[], ai_tooling=["claude-code", "cursor"],
                shared_with=[KANJI_COPY], readme="# Kanji Helper\n\n<script>alert(1)</script>\n\nSee [docs](https://x.org), [manual](docs/manual.md), [top](#usage).\n\n![shot](img/a.png)\n\n"
                       '<p align="center"><a href="https://y.org" target="_blank"><img src="img/b.png"></a></p>\n\n'
                       '<img src="x.png" onerror="alert(2)"><a href="javascript:alert(3)">js</a>\n\n'
                       '<iframe src="https://evil.org"></iframe><style>body{display:none}</style>'),
         _addon(OCCLUSION, "Image Occlusion Plus", likes=298, dislikes=2, update_date="2026-08-01",
                anki_version="2.1.66~", summary="Creates image occlusion cards.", description="Hide parts of an image.",
-               tags=["image-occlusion"], user="bob", stars=500, github_license="NOASSERTION",
+               tags=["image-occlusion"], user="bob", stars=500, github_license="NOASSERTION", ai_declaration=["vibe-coded"],
                license=("GPL-3.0", "readme"),
                description_html='<h2>Occlusion</h2><p><img src="https://example.com/o.png" width="900"></p>'
                                 '<p><a href="https://example.com/docs">docs</a><script>alert(4)</script>'
@@ -98,7 +102,7 @@ def latest_addons() -> list[AddonDetails]:
                forked_from={"id": HEATMAP, "evidence": "github_fork"}, forks=[FORK_OF_FORK]),
         _addon(FORK_OF_FORK, "Heatmap Plus", likes=3, dislikes=0, update_date="2025-03-01", anki_version="2.1.50~",
                summary="Review heatmap with more colors.", description="Heatmap Revived with color themes.",
-               tags=["statistics"], forked_from={"id": FORK, "evidence": "ai"}, languages=["Python"],
+               tags=["statistics", "ai"], forked_from={"id": FORK, "evidence": "ai"}, languages=["Python"],
                clamav=["PUA.Win.Packer.Upx-1"]),
         _addon(KANJI_COPY, "Stroke Order Reupload", likes=1, dislikes=1, update_date="2026-08-21",
                anki_version="25.02~", summary="Shows stroke order.", description="Stroke order.", tags=["dictionary"],

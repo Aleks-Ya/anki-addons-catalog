@@ -242,6 +242,28 @@ def test_cards_mark_copies(make_client: Any) -> None:
             '<mark>copy</mark></a>') in html
 
 
+AI_REASONS = {KANJI: "The GitHub repository has files of AI coding tools: claude-code, cursor.",
+              OCCLUSION: "The description says that AI was used: vibe-coded.",
+              FORK_OF_FORK: "The addon has AI features."}
+
+
+@pytest.mark.parametrize(("addon_id", "reason"), AI_REASONS.items())
+def test_addon_page_marks_addons_built_with_ai(make_client: Any, addon_id: int, reason: str) -> None:
+    header = make_client().get(f"/addon/{addon_id}").text.split("</hgroup>")[0]
+    assert f'<mark title="{reason}">Built with AI</mark>' in header
+
+
+def test_addon_page_without_ai_signal_has_no_ai_mark(make_client: Any) -> None:
+    assert "Built with AI" not in make_client().get(f"/addon/{HEATMAP}").text.split("</hgroup>")[0]
+
+
+def test_cards_mark_addons_built_with_ai(make_client: Any) -> None:
+    html = make_client().get("/search", params={"obsolete": "1"}).text
+    assert html.count("Built with AI</mark>") == len(AI_REASONS)
+    for reason in AI_REASONS.values():
+        assert f'<mark title="{reason}">Built with AI</mark>' in html
+
+
 def test_copy_page_links_its_original(make_client: Any) -> None:
     html = make_client().get(f"/addon/{KANJI_COPY}").text
     assert f'Copy of <a href="/addon/{KANJI}">Kanji Helper</a>' in html

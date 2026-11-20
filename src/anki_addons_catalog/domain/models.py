@@ -8,6 +8,7 @@ from pydantic import BaseModel
 AI_PROVENANCE = "AI-generated summary; may contain mistakes."
 OBSOLETE_TAG = "obsolete"
 PAID_TAG = "paid"
+AI_TAG = "ai"
 SORTS = {"rating": "Best rated", "likes": "Likes", "stars": "GitHub stars", "update_date": "Recently updated",
          "anki_version": "Newest Anki version"}
 MIN_RATINGS = (10, 50, 200)
@@ -32,6 +33,7 @@ class AddonCard(BaseModel):
     anki_version: str | None = None
     ai_summary: str | None = None
     ai_tags: list[str] = []
+    ai_development: dict[str, list[str]] | None = None  # AI coding evidence: tooling (GitHub repo), declaration (description)
     github_user: str | None = None
     github_repo: str | None = None
     github_stars: int | None = None
@@ -48,6 +50,8 @@ class AddonCard(BaseModel):
         anki_web = details["anki_web"]
         github = details.get("github") or {}
         ai = details.get("ai") or {}
+        evidence = {"tooling": github.get("ai_tooling_markers") or [],
+                    "declaration": anki_web.get("ai_declaration_markers") or []}
         return cls(
             id=details["id"], title=anki_web["title"], url=anki_web["addon_page_url"],
             rating=anki_web.get("rating", 0), likes=anki_web.get("likes", 0), dislikes=anki_web.get("dislikes", 0),
@@ -57,7 +61,23 @@ class AddonCard(BaseModel):
             license=(details.get("license") or {}).get("spdx_id"),
             forked_from=(details.get("forked_from") or {}).get("id"), forks=details.get("forks") or [],
             duplicate_of=(details.get("duplicate_of") or {}).get("id"), duplicates=details.get("duplicates") or [],
+            ai_development={k: v for k, v in evidence.items() if v} or None,
         )
+
+
+def ai_use_reasons(ai_development: dict[str, list[str]] | None, ai_tags: list[str]) -> list[str]:
+    """Why an addon counts as built with AI, one sentence per signal; empty when there is no signal.
+
+    An addon with AI features counts too: its author uses AI, so most likely also to write the code."""
+    evidence = ai_development or {}
+    reasons: list[str] = []
+    if evidence.get("tooling"):
+        reasons.append(f"The GitHub repository has files of AI coding tools: {', '.join(evidence['tooling'])}.")
+    if evidence.get("declaration"):
+        reasons.append(f"The description says that AI was used: {', '.join(evidence['declaration'])}.")
+    if AI_TAG in ai_tags:
+        reasons.append("The addon has AI features.")
+    return reasons
 
 
 @dataclass(frozen=True)

@@ -24,7 +24,7 @@ from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, C
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, ToolFailed
-from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AnswerEvent, SearchFilters
+from anki_addons_catalog.domain.models import MIN_RATINGS, SORTS, AddonCard, AnswerEvent, SearchFilters, ai_use_reasons
 from anki_addons_catalog.domain.ports import CatalogPort
 from anki_addons_catalog.interface.web.rendering import (
     best_values,
@@ -114,7 +114,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     templates.env.globals.update(version=__version__, turnstile_site_key=ctx.human.site_key,
                                  public_url=ctx.public_url, top_metrics=TOP_METRICS,
                                  static_hash=_static_hashes(), search_url=search_url, sorts=SORTS,
-                                 min_ratings=MIN_RATINGS, max_query_chars=ctx.max_query_chars)
+                                 min_ratings=MIN_RATINGS, max_query_chars=ctx.max_query_chars,
+                                 ai_use_reasons=ai_use_reasons)
 
     async def keepalive() -> None:
         while ctx.keepalive_seconds > 0:
@@ -321,6 +322,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         copy_of = details.get("duplicate_of")
         shared_with = (details.get("github") or {}).get("shared_with") or []
         anki = anki.strip()[:20]
+        card = AddonCard.from_details(details)
         maintenance, similar, readme, description_html, description, family = await asyncio.gather(
             ctx.catalog.maintenance(addon_id), ctx.catalog.similar(addon_id), ctx.catalog.readme(addon_id),
             ctx.catalog.description_html(addon_id), ctx.catalog.description(addon_id),
@@ -335,7 +337,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         compatibility, versions, original, copies, same_repo = await asyncio.gather(
             ctx.catalog.compatibility(addon_id, anki) if anki else asyncio.sleep(0, None), anki_versions(),
             related([copy_of["id"]] if copy_of else []), related(details.get("duplicates") or []), related(shared_with))
-        return await page(request, "addon.html", a=details,
+        return await page(request, "addon.html", a=details, ai_reasons=ai_use_reasons(card.ai_development, card.ai_tags),
                     maintenance=None if isinstance(maintenance, BaseException) else maintenance,
                     similar=[] if isinstance(similar, BaseException) else similar,
                     readme=None if isinstance(readme, BaseException) else readme,
