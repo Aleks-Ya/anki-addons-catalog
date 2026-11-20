@@ -88,6 +88,7 @@ footer.container { margin-top: 3rem; color: var(--pico-muted-color); }
 /* Pico makes search fields round: give them the corners of the other fields. */
 .filters [type=search] { --pico-border-radius: inherit; }
 .filter-tags { max-height: 16rem; overflow-y: auto; }
+.filter-none { margin-block: 0 .25rem; }  /* Pico pulls a small after an input up into it */
 .filter-tags .count, .filters legend small { color: var(--pico-muted-color); font-weight: normal; }
 .chips { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; font-size: .85rem; }
 .chip { color: var(--pico-color); }
