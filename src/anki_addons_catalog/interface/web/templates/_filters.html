@@ -38,6 +38,9 @@
     </fieldset>
     <fieldset>
       <legend>Categories <small>(all selected must match)</small></legend>
+      <input type="search" class="filter-find" placeholder="Find a category" aria-label="Find a category"
+             autocomplete="off" hidden>
+      <small class="filter-none" hidden>No category matches.</small>
       <div class="filter-tags">
       {% for t in function_tags %}
         <label title="{{ t.description }}"><input type="checkbox" name="tag" value="{{ t.name }}" {% if t.name in filters.tags %}checked{% endif %}>

@@ -402,6 +402,7 @@ def test_search_filters_narrow_results_and_keep_in_links(make_client: Any) -> No
     assert 'data-filters="tag=image-occlusion&amp;rating=200"' in html
     assert '<input type="hidden" name="tag" value="image-occlusion">' in html  # a new question keeps the filters
     assert 'href="/search?q=image&amp;rating=200"' in html  # the chip that removes the tag
+    assert '<input type="search" class="filter-find" placeholder="Find a category"' in html  # no name: not sent
     assert 'name="sort"' not in html  # a query ranks by relevance
     assert f'href="/addon/{KANJI}"' not in client.get("/search", params={"q": "kanji", "anki": "2.1.50"}).text
 

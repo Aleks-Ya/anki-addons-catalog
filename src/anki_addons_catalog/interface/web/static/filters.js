@@ -26,8 +26,8 @@
     submitted = true;
     form.submit();
   };
-  const find = form.querySelector(".filter-find");
-  form.addEventListener("change", (e) => { if (e.target !== find) submit(); });
+  const finds = [...form.querySelectorAll(".filter-find")];
+  form.addEventListener("change", (e) => { if (!finds.includes(e.target)) submit(); });
   // Picking a suggestion fires "input" (a plain Event in Chrome, "insertReplacementText" in Firefox), not always
   // "change"; typed input is left to "change", so typing 25.09.1 does not submit at 25.09.
   anki.addEventListener("input", (e) => {
@@ -35,8 +35,8 @@
   });
   form.addEventListener("submit", (e) => { e.preventDefault(); submit(); });
 
-  // The language list is long: the find field hides the languages that do not contain the typed text.
-  if (find) {
+  // The category and language lists are long: a find field hides the items that do not contain the typed text.
+  for (const find of finds) {
     const labels = [...find.parentElement.querySelectorAll(".filter-tags label")];
     const none = find.parentElement.querySelector(".filter-none");
     find.hidden = false;
