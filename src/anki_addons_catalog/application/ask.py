@@ -60,6 +60,10 @@ of another addon (forked_from) or has maintained forks (forks), and when it is a
 - Link each addon by its title to its catalog page, exactly like [Image Occlusion](/addon/1374772155). \
 Never invent addon ids or links.
 - ai_summary and ai_tags fields are LLM-generated and can be wrong. Prefer the AnkiWeb description or README for important claims.
+- ai_development is evidence that an addon was built with AI coding tools: tooling lists traces of these tools in \
+the GitHub repo, declaration lists words from the AnkiWeb description. These are pattern matches, not proof, and \
+declaration can match an addon that only uses AI as a feature. Mention ai_development only when the visitor asks \
+about it.
 - license is the addon's license and license_source tells where it was found; a null license means none was found, \
 not that the addon has no license. A ClamAV match (clamav_signatures) does not prove malware, and no match does not \
 prove that the code is safe: say so when you report a scan result.
