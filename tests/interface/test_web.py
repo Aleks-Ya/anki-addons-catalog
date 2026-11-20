@@ -257,11 +257,8 @@ def test_addon_page_without_ai_signal_has_no_ai_mark(make_client: Any) -> None:
     assert "Built with AI" not in make_client().get(f"/addon/{HEATMAP}").text.split("</hgroup>")[0]
 
 
-def test_cards_mark_addons_built_with_ai(make_client: Any) -> None:
-    html = make_client().get("/search", params={"obsolete": "1"}).text
-    assert html.count("Built with AI</mark>") == len(AI_REASONS)
-    for reason in AI_REASONS.values():
-        assert f'<mark title="{reason}">Built with AI</mark>' in html
+def test_cards_do_not_mark_addons_built_with_ai(make_client: Any) -> None:
+    assert "Built with AI" not in make_client().get("/search", params={"obsolete": "1"}).text
 
 
 def test_copy_page_links_its_original(make_client: Any) -> None:
