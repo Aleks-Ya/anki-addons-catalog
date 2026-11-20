@@ -8,6 +8,10 @@
         {% for key, label in sorts.items() %}<option value="{{ key }}" {% if filters.sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </label>
+    <label for="f-kw">Keywords
+      <input id="f-kw" type="search" name="kw" value="{{ filters.keywords or '' }}" maxlength="100"
+             placeholder="e.g. image occlusion" autocomplete="off">
+    </label>
     {% endif %}
     <label for="f-anki">Your Anki version
       <input id="f-anki" type="text" name="anki" value="{{ filters.anki or '' }}"

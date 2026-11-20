@@ -41,9 +41,12 @@ class CatalogService:
         return page
 
     async def browse(self, filters: SearchFilters, limit: int = 30, offset: int = 0) -> dict[str, Any]:
-        """Every addon matching the filters, in the filters' sort order."""
-        page: dict[str, Any] = await self.call("filter_addons", sort_by=filters.sort, limit=limit, offset=offset,
-                                               **filters.tool_args(utc_today()))
+        """Every addon matching the filters, in the filters' sort order; keywords narrow it with a full-text search."""
+        args = filters.tool_args(utc_today())
+        if filters.keywords:
+            args["query"] = filters.keywords
+        page: dict[str, Any] = await self.call("search_addons" if filters.keywords else "filter_addons",
+                                               sort_by=filters.sort, limit=limit, offset=offset, **args)
         return page
 
     async def top(self, metric: str = "rating", limit: int = 10) -> dict[str, Any]:

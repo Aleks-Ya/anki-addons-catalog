@@ -83,7 +83,7 @@ def _sse(event: str, data: Any) -> str:
 
 def search_url(q: str = "", filters: SearchFilters | None = None, offset: int = 0) -> str:
     """A /search URL with the query, the filters and the page offset."""
-    params = ([("q", q)] if q else []) + (filters or SearchFilters()).params(sort=not q)
+    params = ([("q", q)] if q else []) + (filters or SearchFilters()).params(browse=not q)
     if offset > 0:
         params.append(("offset", str(offset)))
     return "/search" + ("?" + urlencode(params) if params else "")
@@ -242,6 +242,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         view("search")
         if q:
             ctx.usage.add(u.KEYWORD_SEARCH)
+            filters = filters.model_copy(update={"keywords": None})  # browsing only, like the sort order
         results, all_tags, versions, all_languages = await asyncio.gather(
             ctx.catalog.search(q, filters, limit=SEARCH_PAGE, offset=offset) if q
             else ctx.catalog.browse(filters, limit=SEARCH_PAGE, offset=offset),

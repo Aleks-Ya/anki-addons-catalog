@@ -86,6 +86,15 @@ async def test_search_and_browse_with_filters(counting: CountingCatalog) -> None
     assert [c["id"] for c in old_anki["items"]] == [HEATMAP, FORK_OF_FORK]
 
 
+async def test_browse_with_keywords_keeps_the_sort_order(counting: CountingCatalog) -> None:
+    service = CatalogService(counting)
+    by_date = await service.browse(SearchFilters(keywords="heatmap", show_obsolete=True, sort="update_date"))
+    assert [c["id"] for c in by_date["items"]] == [FORK, FORK_OF_FORK, HEATMAP]
+    assert counting.calls == ["search_addons"]
+    by_rating = await service.browse(SearchFilters(keywords="heatmap", show_obsolete=True))
+    assert [c["id"] for c in by_rating["items"]] == [HEATMAP, FORK, FORK_OF_FORK]  # by relevance: FORK first
+
+
 async def test_compare_forks(counting: CountingCatalog) -> None:
     service = CatalogService(counting)
     family = await service.compare_forks(FORK_OF_FORK)

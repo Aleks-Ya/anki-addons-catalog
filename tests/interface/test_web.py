@@ -414,9 +414,23 @@ def test_search_without_query_browses_the_catalog(make_client: Any) -> None:
     assert client.get("/search", params={"tag": "nope", "q": "kanji"}).status_code == 200
 
 
+def test_browse_keywords_narrow_the_list_and_keep_the_sort_order(make_client: Any) -> None:
+    client = make_client()
+    html = client.get("/search", params={"kw": "heatmap", "obsolete": "1", "sort": "update_date"}).text
+    assert 'name="kw" value="heatmap"' in html and 'id="ai"' not in html
+    assert html.index(f'href="/addon/{FORK_OF_FORK}"') < html.index(f'href="/addon/{HEATMAP}"')
+    assert f'href="/addon/{KANJI}"' not in html
+    assert 'href="/search?obsolete=1&amp;sort=update_date"' in html  # the chip that removes the keywords
+    assert '<input type="hidden" name="kw"' not in html  # a question does not take the keywords
+    html = client.get("/search", params={"q": "kanji", "kw": "heatmap"}).text
+    assert f'href="/addon/{KANJI}"' in html and 'name="kw"' not in html and "Keywords:" not in html
+
+
 def test_search_url_keeps_filters() -> None:
     assert search_url("a b", SearchFilters(tags=["cloze"], sort="likes"), 30) == "/search?q=a+b&tag=cloze&offset=30"
     assert search_url("", SearchFilters(sort="likes")) == "/search?sort=likes"
+    assert search_url("", SearchFilters(keywords="a b"), 30) == "/search?kw=a+b&offset=30"
+    assert search_url("q", SearchFilters(keywords="a b")) == "/search?q=q"
     assert search_url() == "/search"
 
 

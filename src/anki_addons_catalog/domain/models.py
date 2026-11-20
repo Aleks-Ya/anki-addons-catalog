@@ -14,6 +14,7 @@ MIN_RATINGS = (10, 50, 200)
 RECENT_DAYS = 730
 MAX_TAGS = 10
 MAX_LANGUAGES = 10
+MAX_KEYWORD_CHARS = 100
 _ANKI_VERSION = re.compile(r"\d+(\.\d+){1,2}([ab]\d+)?")
 _TAG = re.compile(r"[a-z0-9][a-z0-9-]*")
 _LANGUAGE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 +#.'-]{0,39}")  # GitHub Linguist names, e.g. C++, Common Lisp
@@ -125,6 +126,7 @@ class SearchFilters(BaseModel):
     not_archived: bool = False
     has_github: bool = False
     min_rating: int | None = None
+    keywords: str | None = None  # browsing only: full-text words that narrow the list, in the chosen sort order
     sort: str = "rating"  # browsing only: a text query always ranks by relevance
 
     @classmethod
@@ -137,6 +139,7 @@ class SearchFilters(BaseModel):
             if _LANGUAGE.fullmatch(lang):
                 languages.setdefault(lang.lower(), lang)
         rating = params.get("rating", "")
+        keywords = " ".join((params.get("kw") or "").split())[:MAX_KEYWORD_CHARS].strip()
         return cls(anki=anki if _ANKI_VERSION.fullmatch(anki) else None, tags=tags[:MAX_TAGS],
                    languages=list(languages.values())[:MAX_LANGUAGES],
                    show_obsolete=params.get("obsolete") == "1", hide_paid=params.get("nopaid") == "1",
@@ -144,10 +147,12 @@ class SearchFilters(BaseModel):
                    recent=params.get("recent") == "1", not_archived=params.get("active") == "1",
                    has_github=params.get("github") == "1",
                    min_rating=int(rating) if rating.isdigit() and int(rating) in MIN_RATINGS else None,
+                   keywords=keywords or None,
                    sort=params.get("sort") if params.get("sort") in SORTS else "rating")
 
-    def params(self, sort: bool = True) -> list[tuple[str, str]]:
-        """The URL query parameters, the inverse of `parse` (defaults are left out)."""
+    def params(self, browse: bool = True) -> list[tuple[str, str]]:
+        """The URL query parameters, the inverse of `parse` (defaults are left out); `browse=False` leaves out the
+        browsing-only keywords and sort order."""
         items: list[tuple[str, str]] = [("anki", self.anki)] if self.anki else []
         items += [("tag", t) for t in self.tags]
         items += [("lang", lang) for lang in self.languages]
@@ -156,13 +161,17 @@ class SearchFilters(BaseModel):
         items += [(name, "1") for name, on in flags.items() if on]
         if self.min_rating:
             items.append(("rating", str(self.min_rating)))
-        if sort and self.sort != "rating":
+        if browse and self.keywords:
+            items.append(("kw", self.keywords))
+        if browse and self.sort != "rating":
             items.append(("sort", self.sort))
         return items
 
     def chips(self) -> list[tuple[str, "SearchFilters"]]:
         """Each active filter as a label and the filters without it, for removable chips."""
         chips: list[tuple[str, SearchFilters]] = []
+        if self.keywords:
+            chips.append((f"Keywords: {self.keywords}", self.model_copy(update={"keywords": None})))
         if self.anki:
             chips.append((f"Anki {self.anki}", self.model_copy(update={"anki": None})))
         chips += [(t, self.model_copy(update={"tags": [x for x in self.tags if x != t]})) for t in self.tags]

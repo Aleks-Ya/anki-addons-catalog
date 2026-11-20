@@ -8,6 +8,7 @@
 
   const KEY = "anki-version";
   const anki = form.elements.anki;
+  const keywords = form.elements.kw;  // only when browsing
   const storage = {
     get: () => { try { return localStorage.getItem(KEY); } catch { return null; } },
     set: (value) => { try { value ? localStorage.setItem(KEY, value) : localStorage.removeItem(KEY); } catch { /* private mode */ } },
@@ -21,6 +22,7 @@
     // The "Any rating" radio has an empty value: leave it out of the URL like the other defaults.
     for (const input of form.querySelectorAll("input[name=rating]")) input.disabled = input.checked && !input.value;
     if (!anki.value.trim()) anki.disabled = true;
+    if (keywords && !keywords.value.trim()) keywords.disabled = true;
     submitted = true;
     form.submit();
   };

@@ -203,7 +203,7 @@ class AskService:
         started = time.monotonic()
         self._usage.add(u.AI_ASKED)
         snapshot = await self._snapshot_date()
-        record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(sort=False)) or None)
+        record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(browse=False)) or None)
         key = f"{snapshot}|{query.lower()}|{record.filters or ''}"
         cached = self._answers.get(key)
         if cached is not None:
@@ -267,7 +267,7 @@ class AskService:
         tools = await self.tools()
         tool_filters = filters.tool_args(utc_today())
         preface = f"(Dataset snapshot: {snapshot}.)\n\n" if snapshot else ""
-        if filters.params(sort=False):
+        if filters.params(browse=False):
             preface += (f"(Visitor filters, applied to every search_addons and filter_addons call: "
                         f"{filters.describe()}.)\n\n")
         messages: list[dict[str, Any]] = [{"role": "user", "content": f"{preface}Search query: {query}"}]

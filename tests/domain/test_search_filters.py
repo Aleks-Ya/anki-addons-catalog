@@ -2,7 +2,7 @@ from datetime import date
 
 from starlette.datastructures import QueryParams
 
-from anki_addons_catalog.domain.models import MAX_LANGUAGES, SearchFilters
+from anki_addons_catalog.domain.models import MAX_KEYWORD_CHARS, MAX_LANGUAGES, SearchFilters
 
 
 def parse(query: str) -> SearchFilters:
@@ -17,7 +17,7 @@ def test_empty_url_hides_obsolete_only() -> None:
 
 
 def test_parse_and_params_round_trip() -> None:
-    query = "anki=25.09&tag=statistics&tag=cloze&lang=Python&lang=C%2B%2B&obsolete=1&nopaid=1&nofork=1&recent=1&active=1&github=1&rating=50&sort=likes"
+    query = "anki=25.09&tag=statistics&tag=cloze&lang=Python&lang=C%2B%2B&obsolete=1&nopaid=1&nofork=1&recent=1&active=1&github=1&rating=50&kw=image+occlusion&sort=likes"
     filters = parse(query)
     assert QueryParams(filters.params()) == QueryParams(query)
     assert filters.tool_args(date(2026, 10, 1)) == {
@@ -39,8 +39,21 @@ def test_chips_remove_one_filter_each() -> None:
     assert filters.describe() == "obsolete hidden, Anki 2.1.66, cloze, Updated in 2 years, ≥ 10 votes"
 
 
-def test_sort_is_left_out_on_request() -> None:
-    assert parse("sort=stars&tag=cloze").params(sort=False) == [("tag", "cloze")]
+def test_browsing_only_filters_are_left_out_on_request() -> None:
+    assert parse("sort=stars&kw=heatmap&tag=cloze").params(browse=False) == [("tag", "cloze")]
+
+
+def test_keywords_are_trimmed_and_capped() -> None:
+    assert parse("kw=%20image%20%20%0Aocclusion%20").keywords == "image occlusion"
+    assert parse("kw=%20%20").keywords is None
+    assert len(parse("kw=" + "a" * (MAX_KEYWORD_CHARS + 5)).keywords or "") == MAX_KEYWORD_CHARS
+
+
+def test_keywords_chip_comes_first_and_removes_the_keywords() -> None:
+    filters = parse("tag=cloze&kw=heatmap")
+    chips = dict(filters.chips())
+    assert list(chips) == ["Keywords: heatmap", "cloze"]
+    assert chips["Keywords: heatmap"] == SearchFilters(tags=["cloze"])
 
 
 def test_hide_forks_chip() -> None:
