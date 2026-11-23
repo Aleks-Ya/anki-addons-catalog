@@ -19,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 
 from anki_addons_catalog import __version__
 from anki_addons_catalog.application import usage as u
-from anki_addons_catalog.application.ask import AskService, BudgetExhausted
+from anki_addons_catalog.application.ask import AskService, BudgetExhausted, budget_message
 from anki_addons_catalog.application.catalog import OBSOLETE_TAG, TOP_METRICS, CatalogService
 from anki_addons_catalog.application.limits import RateLimiter
 from anki_addons_catalog.application.usage import UsageStats
@@ -69,6 +69,7 @@ class WebContext:
     usage: UsageStats
     admin_token: str | None = None
     daily_budget_usd: float = 0.0
+    monthly_budget_usd: float = 0.0
     usage_save_seconds: int = 0
 
 
@@ -299,9 +300,8 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             try:
                 async for event in ctx.ask.ask(query, await search_filters(request)):
                     yield _sse(event.type, _event_data(event))
-            except BudgetExhausted:
-                yield _sse("error", "The AI search has reached its daily budget. The keyword results below "
-                                    "still work; AI search is back tomorrow.")
+            except BudgetExhausted as e:
+                yield _sse("error", budget_message(e.resumes_on))
             except CatalogUnavailable:
                 yield _sse("error", "The addon catalog is temporarily unavailable. Please try again in a minute.")
 
@@ -422,7 +422,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                        key=lambda kv: -kv[1])
         return await page(request, "admin_usage.html", days=days, total=_usage_row(totals), views=views,
                     since=ctx.usage.first_day(), persistent=ctx.usage.persistent,
-                    spent_today=ctx.usage.today(u.AI_COST_USD), daily_budget=ctx.daily_budget_usd)
+                    spent_today=ctx.usage.today(u.AI_COST_USD), daily_budget=ctx.daily_budget_usd,
+                    spent_month=ctx.usage.this_month(u.AI_COST_USD), monthly_budget=ctx.monthly_budget_usd,
+                    paused_until=ctx.ask.budget.resumes_on())
 
     @app.get("/admin/questions", response_class=HTMLResponse, dependencies=[Depends(require_admin)])
     async def admin_questions(request: Request, offset: int = 0) -> HTMLResponse:

@@ -14,7 +14,11 @@
   <article><small>AI spend</small><p class="kpi">${{ "%.2f" | format(total.cost) }}</p></article>
   <article><small>Page views</small><p class="kpi">{{ total.views | int }}</p></article>
 </div>
-<p>Spent today: ${{ "%.2f" | format(spent_today) }} of ${{ "%.2f" | format(daily_budget) }}.</p>
+<p>
+  Spent today: ${{ "%.2f" | format(spent_today) }} of ${{ "%.2f" | format(daily_budget) }}.
+  This month: ${{ "%.2f" | format(spent_month) }} of ${{ "%.2f" | format(monthly_budget) }}.
+  {% if paused_until %}<mark>AI search is paused until {{ paused_until | human_date }}.</mark>{% endif %}
+</p>
 
 <h2>Last 30 days</h2>
 <div class="overflow-auto">

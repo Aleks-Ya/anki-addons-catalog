@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import anthropic
@@ -6,6 +7,7 @@ import httpx2
 import pytest
 
 from anki_addons_catalog.adapters.claude.llm import FALLBACK_BETA, ClaudeLlm
+from anki_addons_catalog.domain.errors import LlmQuotaExhausted
 from anki_addons_catalog.domain.models import ToolSpec
 
 pytestmark = pytest.mark.anyio
@@ -99,3 +101,36 @@ async def test_without_fallbacks_sends_no_beta() -> None:
     assert turn.stop_reason == "end_turn" and turn.text.strip() == "Done."
     assert "fallbacks" not in json.loads(requests[0].content)
     assert FALLBACK_BETA not in requests[0].headers.get("anthropic-beta", "")
+
+
+def _error_llm(message: str) -> ClaudeLlm:
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(400, json={"type": "error", "error": {"type": "invalid_request_error",
+                                                                     "message": message}})
+    client = anthropic.AsyncAnthropic(api_key="test", max_retries=0,
+                                      http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)))
+    return ClaudeLlm(client, "claude-sonnet-5-5", "low", 4000)
+
+
+async def _no_text(delta: str) -> None:
+    pass
+
+
+async def test_workspace_limit_becomes_quota_error() -> None:
+    llm = _error_llm("You have reached your specified workspace API usage limits. "
+                     "You will regain access on 2026-12-01 at 00:00 UTC.")
+    with pytest.raises(LlmQuotaExhausted) as e:
+        await llm.turn("s", TOOLS, [{"role": "user", "content": "q"}], _no_text)
+    assert e.value.until == datetime(2026, 12, 1, tzinfo=UTC)
+
+
+async def test_workspace_limit_without_a_date() -> None:
+    llm = _error_llm("You have reached your specified workspace API usage limits.")
+    with pytest.raises(LlmQuotaExhausted) as e:
+        await llm.turn("s", TOOLS, [{"role": "user", "content": "q"}], _no_text)
+    assert e.value.until is None
+
+
+async def test_other_bad_requests_pass_through() -> None:
+    with pytest.raises(anthropic.BadRequestError):
+        await _error_llm("messages: field required").turn("s", TOOLS, [], _no_text)

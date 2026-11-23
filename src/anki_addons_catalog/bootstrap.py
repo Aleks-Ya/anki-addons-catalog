@@ -13,7 +13,7 @@ from anki_addons_catalog.adapters.claude.llm import ClaudeLlm
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.application.ask import AskService
 from anki_addons_catalog.application.catalog import CatalogService
-from anki_addons_catalog.application.limits import DailyBudget, RateLimiter
+from anki_addons_catalog.application.limits import Budget, RateLimiter
 from anki_addons_catalog.application.usage import AI_COST_USD, MEMORY, UsageStats
 from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
@@ -85,7 +85,8 @@ def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmP
     usage = create_usage(settings)
     log.info("Usage statistics: %s", f"saved to {usage.backup}" if usage.backup else
              usage.path if usage.persistent else "in memory (reset on restart)")
-    budget = DailyBudget(settings.daily_budget_usd, pricing, spent_today=usage.today(AI_COST_USD))
+    budget = Budget(settings.daily_budget_usd, settings.monthly_budget_usd, pricing,
+                    spent_today=usage.today(AI_COST_USD), spent_this_month=usage.this_month(AI_COST_USD))
     ask = AskService(port, llm or create_llm(settings), budget,
                      allowed_tools=settings.ai_tools, max_tool_rounds=settings.max_tool_rounds,
                      answer_cache_ttl_seconds=settings.answer_cache_ttl_seconds,
@@ -96,7 +97,8 @@ def create_app(settings: Settings, catalog: CatalogPort | None = None, llm: LlmP
                      limiter=RateLimiter(settings.rate_limit_per_hour), public_url=settings.public_url.rstrip("/"),
                      max_query_chars=settings.max_query_chars, keepalive_seconds=settings.mcp_keepalive_seconds,
                      usage=usage, admin_token=_secret(settings.admin_token),
-                     daily_budget_usd=settings.daily_budget_usd, usage_save_seconds=settings.usage_save_seconds)
+                     daily_budget_usd=settings.daily_budget_usd,
+                     monthly_budget_usd=settings.monthly_budget_usd, usage_save_seconds=settings.usage_save_seconds)
 
     async def close() -> None:
         try:

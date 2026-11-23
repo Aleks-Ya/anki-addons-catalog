@@ -123,3 +123,15 @@ def test_old_questions_are_pruned_on_save(tmp_path: Path) -> None:
     usage.close()
     restored = UsageStats(backup=str(tmp_path / "usage.sqlite3"), now=lambda: now[0])
     assert [q["query"] for q in restored.iter_questions()] == ["new"]
+
+
+def test_this_month_sums_only_the_current_month() -> None:
+    day = [date(2026, 10, 31)]
+    usage = UsageStats(today=lambda: day[0])
+    usage.add(AI_COST_USD, 1.0)
+    day[0] = date(2026, 11, 1)
+    usage.add(AI_COST_USD, 0.25)
+    day[0] = date(2026, 11, 2)
+    usage.add(AI_COST_USD, 0.5)
+    assert usage.this_month(AI_COST_USD) == 0.75
+    assert usage.this_month(KEYWORD_SEARCH) == 0

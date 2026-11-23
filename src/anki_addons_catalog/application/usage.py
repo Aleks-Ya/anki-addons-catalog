@@ -140,6 +140,12 @@ class UsageStats:
                                (self._today().isoformat(), name)).fetchone()
         return float(row[0]) if row else 0.0
 
+    def this_month(self, name: str) -> float:
+        """The sum of a counter since the 1st of the current UTC month."""
+        row = self._db.execute("SELECT SUM(value) FROM counters WHERE day >= ? AND name = ?",
+                               (self._today().replace(day=1).isoformat(), name)).fetchone()
+        return float(row[0] or 0.0)
+
     def daily(self, days: int = 30) -> list[tuple[str, dict[str, float]]]:
         """Counters of the last `days` days that have any, newest first."""
         result: dict[str, dict[str, float]] = {}

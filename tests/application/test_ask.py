@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -10,14 +10,16 @@ from anki_addons_catalog.application.ask import (
     AskService,
     BudgetExhausted,
     _tool_status,
+    budget_message,
     extract_cards,
     normalize_query,
     referenced_ids,
     with_filters,
 )
-from anki_addons_catalog.application.limits import DailyBudget, Pricing
+from anki_addons_catalog.application.limits import Budget, Pricing
 from anki_addons_catalog.application.usage import UsageStats
 from anki_addons_catalog.config import Settings
+from anki_addons_catalog.domain.errors import LlmQuotaExhausted
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, Usage
 from tests.conftest import FakeLlm
 from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, OCCLUSION
@@ -43,7 +45,7 @@ def service(catalog: McpCatalog, llm: FakeLlm, budget_usd: float = 1.0, max_roun
             usage: UsageStats | None = None, allowed_tools: list[str] = TOOLS) -> AskService:
     async def snapshot() -> str:
         return "2026-09-01"
-    return AskService(catalog, llm, DailyBudget(budget_usd, PRICING, today=lambda: date(2026, 10, 1)),
+    return AskService(catalog, llm, Budget(budget_usd, -1, PRICING, today=lambda: date(2026, 10, 1)),
                       allowed_tools=allowed_tools, max_tool_rounds=max_rounds, snapshot=snapshot, usage=usage)
 
 
@@ -53,7 +55,7 @@ async def collect(ask: AskService, query: str, filters: SearchFilters | None = N
 
 async def test_offers_every_configured_tool_including_list_tags(catalog: McpCatalog) -> None:
     configured = Settings.model_fields["ai_tools"].default
-    ask = AskService(catalog, FakeLlm([]), DailyBudget(1.0, PRICING), allowed_tools=configured)
+    ask = AskService(catalog, FakeLlm([]), Budget(1.0, -1, PRICING), allowed_tools=configured)
     names = [t.name for t in await ask.tools()]
     assert sorted(names) == sorted(configured)
     assert "list_tags" in names
@@ -143,10 +145,34 @@ async def test_answers_are_cached(catalog: McpCatalog) -> None:
 async def test_budget_exhausted(catalog: McpCatalog) -> None:
     usage = UsageStats()
     ask = service(catalog, FakeLlm([answer("a")]), budget_usd=0, usage=usage)
-    with pytest.raises(BudgetExhausted):
+    with pytest.raises(BudgetExhausted) as e:
         await collect(ask, "kanji")
+    assert e.value.resumes_on == date(2026, 10, 2)
     assert usage.today(u.AI_BUDGET_EXHAUSTED) == 1
     assert [q["outcome"] for q in usage.iter_questions()] == ["budget"]
+
+
+class QuotaLlm(FakeLlm):
+    """Refuses every request, as the API does at the workspace spend limit."""
+
+    async def turn(self, *args: Any) -> LlmTurn:
+        self.requests.append([])
+        raise LlmQuotaExhausted("You have reached your specified workspace API usage limits.",
+                                datetime(2026, 12, 1, tzinfo=UTC))
+
+
+async def test_workspace_limit_pauses_ai_search(catalog: McpCatalog) -> None:
+    usage = UsageStats()
+    llm = QuotaLlm([])
+    ask = service(catalog, llm, usage=usage)
+    events = await collect(ask, "kanji")
+    assert events[-1] == AnswerEvent("error", budget_message(date(2026, 12, 1)))
+    assert "paused until 1 Dec 2026" in events[-1].data
+    assert [q["outcome"] for q in usage.iter_questions()] == ["budget"]
+    assert usage.today(u.AI_BUDGET_EXHAUSTED) == 1 and usage.today(u.AI_FAILED) == 0
+    with pytest.raises(BudgetExhausted) as e:
+        await collect(ask, "heatmap")
+    assert e.value.resumes_on == date(2026, 12, 1) and len(llm.requests) == 1  # no second request
 
 
 async def test_refusal(catalog: McpCatalog) -> None:

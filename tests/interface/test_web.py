@@ -565,7 +565,7 @@ def test_ask_rate_limited(make_client: Any) -> None:
 
 def test_ask_budget_exhausted(make_client: Any) -> None:
     events = sse_events(make_client(daily_budget_usd=0).get("/api/ask", params={"q": "kanji"}).text)
-    assert events[0][0] == "error" and "budget" in events[0][1]
+    assert events[0][0] == "error" and "AI search is paused until" in events[0][1]
 
 
 def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -659,6 +659,7 @@ def test_admin_usage_counts_searches_and_views(make_client: Any) -> None:
     assert '<small>AI questions</small><p class="kpi">1</p>' in html
     assert '<small>Page views</small><p class="kpi">3</p>' in html
     assert '<tr><td>search</td><td class="num">2</td></tr>' in html
+    assert "This month: $" in html and "paused until" not in html
     assert '<meta name="robots" content="noindex">' in html
 
 

@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     price_cache_write_per_mtok: float | None = None
 
     daily_budget_usd: float = 5.0
+    monthly_budget_usd: float = 18.0  # keep it under the workspace spend limit in the Claude Console
     rate_limit_per_hour: int = 20
     answer_cache_ttl_seconds: int = 86400
 

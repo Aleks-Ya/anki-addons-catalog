@@ -1,7 +1,7 @@
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from anki_addons_catalog.domain.models import Usage
 
@@ -84,31 +84,67 @@ def utc_today() -> date:
     return datetime.now(UTC).date()
 
 
-class DailyBudget:
-    """Global AI spend cap in USD that resets at UTC midnight."""
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
-    def __init__(self, limit_usd: float, pricing: Pricing, today: Callable[[], date] = utc_today,
-                 spent_today: float = 0.0) -> None:
-        self._limit = limit_usd
+
+class Budget:
+    """Global AI spend caps in USD per UTC day and per UTC month; a negative limit turns a cap off.
+
+    `pause_until()` also stops the AI search until a given time, e.g. when the API reports the workspace spend limit."""
+
+    def __init__(self, daily_usd: float, monthly_usd: float, pricing: Pricing, today: Callable[[], date] = utc_today,
+                 now: Callable[[], datetime] = utc_now, spent_today: float = 0.0,
+                 spent_this_month: float = 0.0) -> None:
+        self._daily = daily_usd
+        self._monthly = monthly_usd
         self._pricing = pricing
         self._today = today
+        self._now = now
         self._day = today()
         self._spent = spent_today
+        self._spent_month = spent_this_month
+        self._paused_until: datetime | None = None
 
     def _roll(self) -> None:
         if (day := self._today()) != self._day:
+            if (day.year, day.month) != (self._day.year, self._day.month):
+                self._spent_month = 0.0
             self._day, self._spent = day, 0.0
 
     @property
     def spent_usd(self) -> float:
+        """Spent today."""
         self._roll()
         return self._spent
 
+    @property
+    def spent_month_usd(self) -> float:
+        self._roll()
+        return self._spent_month
+
+    def pause_until(self, when: datetime) -> None:
+        if self._paused_until is None or when > self._paused_until:
+            self._paused_until = when
+
+    def resumes_on(self) -> date | None:
+        """The UTC day the AI search runs again; None while it may run."""
+        self._roll()
+        days = []
+        if self._paused_until is not None and self._now() < self._paused_until:
+            days.append(self._paused_until.date())
+        if self._daily >= 0 and self._spent >= self._daily:
+            days.append(self._day + timedelta(days=1))
+        if self._monthly >= 0 and self._spent_month >= self._monthly:
+            days.append((self._day.replace(day=1) + timedelta(days=32)).replace(day=1))
+        return max(days) if days else None
+
     def exhausted(self) -> bool:
-        return self._limit >= 0 and self.spent_usd >= self._limit
+        return self.resumes_on() is not None
 
     def record(self, usage: Usage) -> float:
         self._roll()
         cost = self._pricing.cost(usage)
         self._spent += cost
+        self._spent_month += cost
         return cost

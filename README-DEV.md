@@ -23,8 +23,8 @@ cd ../anki-addons-catalog && uv run anki-addons-catalog --port 8080 --mcp-url ht
 ```
 
 Without `ANTHROPIC_API_KEY` the plain pages work, and AI search shows an error. Turnstile is disabled while
-`ANKI_CATALOG_TURNSTILE_SECRET` is unset. Every AI question costs real money; the daily budget
-(`ANKI_CATALOG_DAILY_BUDGET_USD`) applies locally too.
+`ANKI_CATALOG_TURNSTILE_SECRET` is unset. Every AI question costs real money; the daily and monthly
+budgets (`ANKI_CATALOG_DAILY_BUDGET_USD`, `ANKI_CATALOG_MONTHLY_BUDGET_USD`) apply locally too.
 
 ## Run in Docker
 
@@ -52,7 +52,7 @@ Ports and adapters, the same layout as the MCP server:
 
 ```
 interface/web    FastAPI routes, Jinja2 templates, static JS/CSS, SSE endpoint, Turnstile + signed cookie
-application      AskService (Claude tool loop), CatalogService (plain pages), TTL cache, rate limit, daily budget
+application      AskService (Claude tool loop), CatalogService (plain pages), TTL cache, rate limit, daily and monthly budget
 domain           AddonCard, LlmTurn, AnswerEvent; ports CatalogPort (MCP) and LlmPort (Claude)
 adapters/mcp     CatalogPort over one long-lived MCP client session (reconnects on failure): to the anki-addons-mcp
                  server in-process (in-memory transport), or to a remote one at ANKI_CATALOG_MCP_URL
@@ -62,9 +62,11 @@ bootstrap        settings -> adapters -> services -> FastAPI app
 
 **AI search** (`/search?q=…` page + `GET /api/ask?q=…` Server-Sent Events):
 1. Checks the question length, the Turnstile pass cookie, the rate limit per IP and per Turnstile pass,
-   and the daily budget. A request
+   and the daily and monthly budget. A request
    with the admin login (see [Usage statistics](#usage-statistics)) skips Turnstile and the rate limit, for smoke
-   tests; the daily budget still applies.
+   tests; the budgets still apply. When the API reports the workspace spend limit (an HTTP 400 "You have reached
+   your specified workspace API usage limits"), the app pauses AI search until the time in the error, as if the
+   budget were used up. The pause lives in memory, so after a restart one question meets the error again.
 2. Serves a cached answer for the same question and dataset snapshot, if any.
 3. Runs the tool loop: Claude gets the system prompt and the allowed MCP tools (sorted, with cache breakpoints, so
    the static prefix is prompt-cached), calls tools in parallel, and the app runs them over MCP. At most
@@ -89,7 +91,8 @@ Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog
 2. In the Space settings, add the secrets `ANTHROPIC_API_KEY`, `HF_TOKEN` (a fine-grained read-only token, see
    [MCP server](#mcp-server)), `ANKI_CATALOG_TURNSTILE_SECRET`,
    `ANKI_CATALOG_SESSION_SECRET`, `ANKI_CATALOG_ADMIN_TOKEN` (e.g. `openssl rand -hex 32` for both) and the variable
-   `ANKI_CATALOG_TURNSTILE_SITE_KEY`. Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD` and
+   `ANKI_CATALOG_TURNSTILE_SITE_KEY`. Optionally adjust `ANKI_CATALOG_DAILY_BUDGET_USD`,
+   `ANKI_CATALOG_MONTHLY_BUDGET_USD` (keep it under the workspace spend limit in the Claude Console) and
    `ANKI_CATALOG_RATE_LIMIT_PER_HOUR`.
 3. Push the repository:
    ```bash
@@ -177,7 +180,7 @@ bucket (e.g. `Ya-Alex/anki-addons-catalog-data`) read-write at `/data`. The buck
 A bucket mount cannot update a file in place, as SQLite does, so the counters live in an in-memory SQLite database:
 it is restored from `/data/usage.sqlite3` on start and written back as a whole every
 `ANKI_CATALOG_USAGE_SAVE_SECONDS` and on shutdown. A crash loses at most that interval; a damaged file is logged and
-replaced. The daily budget resumes from the restored counters. Without a volume the counters reset on restart. The
+replaced. The daily and monthly budgets resume from the restored counters. Without a volume the counters reset on restart. The
 startup log says "Usage statistics: saved to /data/usage.sqlite3".
 
 ### Custom domain (www.anki-addons-catalog.com)

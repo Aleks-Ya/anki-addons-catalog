@@ -67,6 +67,7 @@ Anthropic SDK directly.
 | `ANKI_CATALOG_FALLBACKS_ENABLED` | `true` | Server-side refusal fallback (`fallbacks: "default"`), for models that have it (not Haiku 5.5) |
 | `ANKI_CATALOG_PRICE_*_PER_MTOK` | the model's prices | Override the prices used to count the spend; required for a model the app doesn't know |
 | `ANKI_CATALOG_DAILY_BUDGET_USD` | `5` | Global AI spend cap per UTC day; then only keyword search works |
+| `ANKI_CATALOG_MONTHLY_BUDGET_USD` | `18` | Global AI spend cap per UTC month; keep it under the workspace spend limit in the Claude Console |
 | `ANKI_CATALOG_RATE_LIMIT_PER_HOUR` | `20` | AI questions per hour per visitor IP and per passed bot check; `0` disables |
 | `ANKI_CATALOG_ANSWER_CACHE_TTL_SECONDS` | `86400` | Cache of AI answers per question and snapshot |
 | `ANKI_CATALOG_MAX_QUERY_CHARS` | `2000` | Maximum question length |

@@ -4,13 +4,14 @@ import logging
 import re
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import date, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
 from anki_addons_catalog.application import usage as u
-from anki_addons_catalog.application.limits import DailyBudget, TtlCache, utc_today
+from anki_addons_catalog.application.limits import Budget, TtlCache, utc_now, utc_today
 from anki_addons_catalog.application.usage import QuestionRecord, UsageStats
-from anki_addons_catalog.domain.errors import CatalogUnavailable
+from anki_addons_catalog.domain.errors import CatalogUnavailable, LlmQuotaExhausted
 from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, ToolSpec
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
 
@@ -87,7 +88,16 @@ Emit = Callable[[AnswerEvent], Awaitable[None]]
 
 
 class BudgetExhausted(Exception):
-    """The daily AI budget is spent."""
+    """The AI budget is spent, or the API refuses requests at the workspace spend limit, until `resumes_on`."""
+
+    def __init__(self, resumes_on: date) -> None:
+        super().__init__(f"AI search paused until {resumes_on}")
+        self.resumes_on = resumes_on
+
+
+def budget_message(resumes_on: date) -> str:
+    return (f"AI search is paused until {resumes_on.day} {resumes_on:%b %Y} because its budget is used up. "
+            "The keyword results below still work.")
 
 
 def normalize_query(query: str) -> str:
@@ -166,7 +176,7 @@ def _trace_step(turn: LlmTurn, cost: float) -> dict[str, Any]:
 class AskService:
     """Answers a natural-language question with Claude, which calls the MCP catalog tools."""
 
-    def __init__(self, catalog: CatalogPort, llm: LlmPort, budget: DailyBudget, *, allowed_tools: list[str],
+    def __init__(self, catalog: CatalogPort, llm: LlmPort, budget: Budget, *, allowed_tools: list[str],
                  max_tool_rounds: int = 6, answer_cache_ttl_seconds: float = 86400,
                  snapshot: Callable[[], Awaitable[str | None]] | None = None,
                  usage: UsageStats | None = None) -> None:
@@ -181,7 +191,7 @@ class AskService:
         self._answers: TtlCache[str, list[AnswerEvent]] = TtlCache(answer_cache_ttl_seconds, max_entries=1000)
 
     @property
-    def budget(self) -> DailyBudget:
+    def budget(self) -> Budget:
         return self._budget
 
     async def tools(self) -> list[ToolSpec]:
@@ -222,11 +232,11 @@ class AskService:
             for event in cached:
                 yield event
             return
-        if self._budget.exhausted():
+        if (resumes_on := self._budget.resumes_on()) is not None:
             self._usage.add(u.AI_BUDGET_EXHAUSTED)
             record.outcome = "budget"
             self._record(record, started)
-            raise BudgetExhausted()
+            raise BudgetExhausted(resumes_on)
 
         queue: asyncio.Queue[AnswerEvent | None] = asyncio.Queue()
 
@@ -244,6 +254,12 @@ class AskService:
                 self._usage.add(u.AI_FAILED)
                 await emit(AnswerEvent("error", "The addon catalog is temporarily unavailable. "
                                                 "Please try again in a minute."))
+            except LlmQuotaExhausted as e:
+                log.warning("The API refuses requests until %s: %s", e.until, e)
+                self._budget.pause_until(e.until or utc_now() + timedelta(hours=1))
+                record.outcome, record.error = "budget", repr(e)
+                self._usage.add(u.AI_BUDGET_EXHAUSTED)
+                await emit(AnswerEvent("error", budget_message(self._budget.resumes_on() or utc_today())))
             except Exception as e:
                 log.exception("AI search failed for query %r", query)
                 record.outcome, record.error = "failed", repr(e)
@@ -285,10 +301,10 @@ class AskService:
         turn: LlmTurn | None = None
         rounds = 0
         for rounds in range(1, self._max_rounds + 2):
-            if self._budget.exhausted():
+            if (resumes_on := self._budget.resumes_on()) is not None:
                 self._usage.add(u.AI_BUDGET_EXHAUSTED)
                 record.outcome = "budget"
-                await emit(AnswerEvent("error", "The daily AI budget is used up. Please try the keyword search."))
+                await emit(AnswerEvent("error", budget_message(resumes_on)))
                 return None
             await emit(AnswerEvent("status", "Thinking"))
             turn = await self._llm.turn(SYSTEM_PROMPT, tools, messages, on_text)
