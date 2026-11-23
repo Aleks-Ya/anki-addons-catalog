@@ -12,7 +12,7 @@
   <h1>Alternatives to <a href="/addon/{{ a.id }}">{{ w.title }}</a></h1>
   <p>AnkiWeb addon <code>{{ a.id }}</code>{% if filters.anki %} · for Anki {{ filters.anki }}{% endif %}</p>
 </hgroup>
-{% include "_ai_answer.html" %}
+{% with ai_button="Ask the AI for alternatives" %}{% include "_ai_answer.html" %}{% endwith %}
 {% if similar %}
 <section>
   <h2>Similar addons <small>(found without AI)</small></h2>

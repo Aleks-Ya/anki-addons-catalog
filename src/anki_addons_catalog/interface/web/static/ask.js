@@ -1,4 +1,5 @@
-// Streams the AI answer for the search page from /api/ask (Server-Sent Events).
+// Streams the AI answer from /api/ask (Server-Sent Events) after the visitor clicks the button: a question that
+// starts on page load is mostly cancelled by a filter change or a quick exit, but still costs money.
 (() => {
   const root = document.getElementById("ai");
   if (!root) return;
@@ -8,6 +9,7 @@
   const answer = document.getElementById("ai-answer");
   const addons = document.getElementById("ai-addons");
   const widget = document.getElementById("ai-turnstile");
+  const button = document.getElementById("ai-start");
 
   const setStatus = (text, busy = true) => {
     status.replaceChildren();
@@ -80,5 +82,8 @@
     });
   }
 
-  start();
+  button.addEventListener("click", () => {
+    button.hidden = true;
+    start();
+  });
 })();

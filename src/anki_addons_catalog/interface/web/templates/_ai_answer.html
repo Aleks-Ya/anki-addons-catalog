@@ -1,6 +1,7 @@
 <section id="ai" class="ai" data-query="{{ q }}" data-filters="{{ search_url('', filters).partition('?')[2] }}" data-site-key="{{ turnstile_site_key or '' }}">
   <h2>AI answer</h2>
-  <div id="ai-status" class="status" aria-live="polite"><span aria-busy="true">Starting…</span></div>
+  <button type="button" id="ai-start">{{ ai_button }}</button>
+  <div id="ai-status" class="status" aria-live="polite"></div>
   <div id="ai-turnstile"></div>
   <div id="ai-answer" class="answer"></div>
   <div id="ai-addons"></div>

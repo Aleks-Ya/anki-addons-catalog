@@ -444,7 +444,7 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     @app.get("/robots.txt", response_class=PlainTextResponse)
     async def robots() -> str:
-        return f"User-agent: *\nDisallow: /api/\nDisallow: /admin/\nDisallow: /search\nSitemap: {ctx.public_url}/sitemap.xml\n"
+        return f"User-agent: *\nDisallow: /api/\nDisallow: /admin/\nDisallow: /search\nDisallow: /addon/*/alternatives\nSitemap: {ctx.public_url}/sitemap.xml\n"
 
     @app.get("/sitemap.xml")
     async def sitemap() -> Response:

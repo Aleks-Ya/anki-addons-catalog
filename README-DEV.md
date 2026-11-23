@@ -75,6 +75,10 @@ bootstrap        settings -> adapters -> services -> FastAPI app
 The keyword results (`search_addons`) are rendered server-side under the AI answer, so the page is useful even
 when the AI is unavailable or over budget.
 
+The AI question starts only when the visitor clicks the button in the AI answer section (on the search and the
+alternatives page). Questions that started on page load were mostly cancelled by a filter change, which reloads the
+page, or by a quick exit, but still cost money: in November 2026 they were more than half of the AI spend.
+
 ## Deploy to a HuggingFace Space
 
 Space: https://huggingface.co/spaces/Ya-Alex/anki-addons-catalog

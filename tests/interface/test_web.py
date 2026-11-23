@@ -160,7 +160,7 @@ def test_alternatives_page_asks_about_the_addon(make_client: Any) -> None:
     html = make_client().get(f"/addon/{HEATMAP}/alternatives").text
     assert "<title>Alternatives to Review Heatmap – Anki Addons Catalog</title>" in html
     assert f'data-query="Alternatives to Review Heatmap (addon {HEATMAP})"' in html and 'data-filters=""' in html
-    assert '<meta name="robots" content="noindex">' in html
+    assert '<meta name="robots" content="noindex">' in html and '>Ask the AI for alternatives</button>' in html
     assert f'<link rel="canonical" href="https://example.org/addon/{HEATMAP}/alternatives">' in html
     assert "Similar addons" in html and f'<a href="/addon/{FORK}" target="_blank">' in html
 
@@ -410,7 +410,7 @@ def test_history_json(make_client: Any) -> None:
 
 def test_search_page_has_keyword_results_and_ai_section(make_client: Any) -> None:
     html = make_client().get("/search?q=kanji").text
-    assert 'data-query="kanji"' in html
+    assert 'data-query="kanji"' in html and '>Ask the AI</button>' in html
     assert f'href="/addon/{KANJI}"' in html
 
 
@@ -530,7 +530,7 @@ def test_sitemap_and_robots(make_client: Any) -> None:
     assert "<loc>https://example.org/tag/dictionary</loc>" in sitemap
     robots = client.get("/robots.txt").text
     assert "Sitemap: https://example.org/sitemap.xml" in robots
-    assert "Disallow: /admin/" in robots
+    assert "Disallow: /admin/" in robots and "Disallow: /addon/*/alternatives" in robots
 
 
 def test_healthz(make_client: Any) -> None:

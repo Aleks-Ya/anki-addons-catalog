@@ -16,7 +16,7 @@
 </p>
 {% endif %}
 {% if q %}
-{% include "_ai_answer.html" %}
+{% with ai_button="Ask the AI" %}{% include "_ai_answer.html" %}{% endwith %}
 {% endif %}
 <section>
   <h2>{% if q %}Keyword matches{% else %}All addons{% endif %} <small>({{ results.total }})</small></h2>

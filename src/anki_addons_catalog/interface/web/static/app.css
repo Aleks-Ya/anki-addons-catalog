@@ -36,6 +36,7 @@ a.tag:hover { border-color: var(--pico-primary); color: var(--pico-primary); }
 .cards .card footer.meta { margin-top: .5rem; font-size: .8rem; display: flex; flex-wrap: wrap; gap: .25rem .75rem; }
 
 .ai { border-left: 4px solid var(--pico-primary); padding-left: 1rem; margin-bottom: 2rem; }
+#ai-start { margin-bottom: 1rem; }
 .answer.streaming { white-space: pre-wrap; }
 .status .error { color: var(--pico-del-color); }
 .disclaimer { color: var(--pico-muted-color); }
