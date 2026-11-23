@@ -24,7 +24,8 @@ def client_ip(request: Request) -> str:
 class HumanCheck:
     """Cloudflare Turnstile verification plus a signed, short-lived cookie that marks a verified visitor.
 
-    Without a Turnstile secret the check is disabled (local development).
+    The cookie is `<expires>.<nonce>.<signature>`; `<expires>.<nonce>` identifies the pass, so the rate limit can count
+    questions per pass as well as per IP. Without a Turnstile secret the check is disabled (local development).
     """
 
     def __init__(self, site_key: str | None, secret: str | None, session_secret: str | None,
@@ -42,17 +43,21 @@ class HumanCheck:
         return hmac.new(self._key, payload.encode(), hashlib.sha256).hexdigest()
 
     def issue_pass(self, now: float | None = None) -> str:
-        expires = str(int((now or time.time()) + self._ttl))
-        return f"{expires}.{self._sign(expires)}"
+        payload = f"{int((now or time.time()) + self._ttl)}.{secrets.token_hex(8)}"
+        return f"{payload}.{self._sign(payload)}"
+
+    def pass_id(self, request: Request, now: float | None = None) -> str | None:
+        """The id of the visitor's valid, unexpired pass; None without one or with the check disabled."""
+        if not self.enabled:
+            return None
+        payload, _, signature = request.cookies.get(PASS_COOKIE, "").rpartition(".")
+        expires, _, nonce = payload.partition(".")
+        if not expires.isdigit() or not nonce or not hmac.compare_digest(signature, self._sign(payload)):
+            return None
+        return payload if int(expires) > (now or time.time()) else None
 
     def has_pass(self, request: Request, now: float | None = None) -> bool:
-        if not self.enabled:
-            return True
-        value = request.cookies.get(PASS_COOKIE, "")
-        expires, _, signature = value.partition(".")
-        if not expires.isdigit() or not hmac.compare_digest(signature, self._sign(expires)):
-            return False
-        return int(expires) > (now or time.time())
+        return not self.enabled or self.pass_id(request, now) is not None
 
     async def verify(self, token: str, ip: str) -> bool:
         if not self.enabled:

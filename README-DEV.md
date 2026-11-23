@@ -61,7 +61,8 @@ bootstrap        settings -> adapters -> services -> FastAPI app
 ```
 
 **AI search** (`/search?q=…` page + `GET /api/ask?q=…` Server-Sent Events):
-1. Checks the question length, the Turnstile pass cookie, the per-IP rate limit and the daily budget. A request
+1. Checks the question length, the Turnstile pass cookie, the rate limit per IP and per Turnstile pass,
+   and the daily budget. A request
    with the admin login (see [Usage statistics](#usage-statistics)) skips Turnstile and the rate limit, for smoke
    tests; the daily budget still applies.
 2. Serves a cached answer for the same question and dataset snapshot, if any.

@@ -590,6 +590,45 @@ def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> No
     assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
 
 
+def test_ask_rate_limited_per_pass(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s",
+                         rate_limit_per_hour=1)
+    from anki_addons_catalog.interface.web import security
+
+    async def fake_verify(self: Any, token: str, ip: str) -> bool:
+        return True
+    monkeypatch.setattr(security.HumanCheck, "verify", fake_verify)
+
+    def ask(ip: str) -> list[tuple[str, Any]]:
+        return sse_events(client.get("/api/ask", params={"q": "kanji"}, headers={"X-Forwarded-For": ip}).text)
+
+    client.post("/api/verify", data={"token": "t"})
+    assert ask("1.1.1.1")[-1][0] == "done"
+    events = ask("2.2.2.2")  # the same pass from another IP
+    assert events[0][0] == "error" and "many questions" in events[0][1]
+    client.cookies.clear()
+    client.post("/api/verify", data={"token": "t"})
+    assert ask("3.3.3.3")[-1][0] == "done"  # 2.2.2.2 used its own token on the denied question
+
+
+def test_pass_ids_are_unique_and_old_cookies_invalid() -> None:
+    from starlette.requests import Request
+
+    from anki_addons_catalog.interface.web.security import HumanCheck
+
+    human = HumanCheck("site", "secret", "s", 3600)
+
+    def request(cookie: str) -> Request:
+        return Request({"type": "http", "headers": [(b"cookie", f"{PASS_COOKIE}={cookie}".encode())]})
+
+    first, second = human.issue_pass(now=1000), human.issue_pass(now=1000)
+    assert human.pass_id(request(first), now=1000) != human.pass_id(request(second), now=1000)
+    assert human.pass_id(request(first), now=1000) and human.pass_id(request(first), now=5000) is None
+    expires = "9999999999"
+    assert human.pass_id(request(f"{expires}.{human._sign(expires)}")) is None  # the format before pass ids
+    assert HumanCheck("site", None, "s", 3600).pass_id(request(first), now=1000) is None  # check disabled
+
+
 def test_admin_asks_without_turnstile_and_rate_limit(make_client: Any) -> None:
     client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s",
                          admin_token="secret", rate_limit_per_hour=1)

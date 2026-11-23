@@ -288,7 +288,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
         if not admin and not ctx.human.has_pass(request):
             ctx.usage.add(u.AI_VERIFY)
             return stream(single("verify", None))
-        if not admin and not ctx.limiter.allow(client_ip(request)):
+        pass_id = ctx.human.pass_id(request)
+        keys = [f"ip:{client_ip(request)}", *([f"pass:{pass_id}"] if pass_id else [])]
+        if not admin and not all(ctx.limiter.allow(key) for key in keys):  # per pass: a pass works from any IP
             ctx.usage.add(u.AI_RATE_LIMITED)
             return stream(single("error", "You have asked many questions in a short time. Please wait a bit, "
                                           "or use the keyword results below."))
