@@ -217,6 +217,13 @@ Cloudflare dashboard → **Turnstile** → **Add widget**: hostnames `www.anki-a
 local testing), mode **Managed**. Put the site key into `ANKI_CATALOG_TURNSTILE_SITE_KEY` and the secret key into
 `ANKI_CATALOG_TURNSTILE_SECRET`.
 
+When a visitor sees "The check failed", the Space log has a `Turnstile siteverify` warning:
+- `failed after … s: ConnectTimeout(…)` (or another exception): the app could not reach Cloudflare. The app tries
+  twice.
+- `rejected the token: error-codes ['invalid-input-secret']`: `ANKI_CATALOG_TURNSTILE_SECRET` is wrong.
+  `invalid-input-response` or `timeout-or-duplicate`: the token was invalid, expired or used already.
+- `answered HTTP …`: Cloudflare returned an error page.
+
 ### MCP server
 
 By default the catalog runs the [anki-addons-mcp](https://github.com/Aleks-Ya/anki-addons-mcp) server in-process (a

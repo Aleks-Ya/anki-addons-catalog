@@ -3,6 +3,7 @@ import hmac
 import logging
 import secrets
 import time
+import uuid
 
 import httpx
 from starlette.requests import Request
@@ -11,6 +12,8 @@ log = logging.getLogger(__name__)
 
 PASS_COOKIE = "ai_pass"
 SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+SITEVERIFY_TIMEOUT_SECONDS = 10
+SITEVERIFY_ATTEMPTS = 2
 
 
 def client_ip(request: Request) -> str:
@@ -29,9 +32,10 @@ class HumanCheck:
     """
 
     def __init__(self, site_key: str | None, secret: str | None, session_secret: str | None,
-                 pass_ttl_seconds: int) -> None:
+                 pass_ttl_seconds: int, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self.site_key = site_key if secret else None
         self._secret = secret
+        self._transport = transport  # for tests
         self._key = (session_secret or secrets.token_hex(32)).encode()
         self._ttl = pass_ttl_seconds
 
@@ -60,18 +64,37 @@ class HumanCheck:
         return not self.enabled or self.pass_id(request, now) is not None
 
     async def verify(self, token: str, ip: str) -> bool:
+        """Ask Cloudflare whether the widget's token is valid. A network error is retried once with the same
+        idempotency key, so Cloudflare does not reject the retry as a reused token. Every failure is logged with
+        what Cloudflare answered, or the exception type (httpx timeouts have an empty message)."""
         if not self.enabled:
             return True
         if not token:
             return False
+        data = {"secret": self._secret, "response": token, "remoteip": ip, "idempotency_key": str(uuid.uuid4())}
+        async with httpx.AsyncClient(timeout=SITEVERIFY_TIMEOUT_SECONDS, transport=self._transport) as http:
+            for attempt in range(1, SITEVERIFY_ATTEMPTS + 1):
+                started = time.monotonic()
+                try:
+                    response = await http.post(SITEVERIFY_URL, data=data)
+                    break
+                except httpx.RequestError as e:
+                    log.warning("Turnstile siteverify failed after %.1f s (attempt %d of %d): %r",
+                                time.monotonic() - started, attempt, SITEVERIFY_ATTEMPTS, e)
+            else:
+                return False
         try:
-            async with httpx.AsyncClient(timeout=10) as http:
-                response = await http.post(SITEVERIFY_URL, data={
-                    "secret": self._secret, "response": token, "remoteip": ip})
-            return bool(response.json().get("success"))
-        except (httpx.HTTPError, ValueError) as e:
-            log.warning("Turnstile verification failed: %s", e)
+            result = response.json()
+        except ValueError:
+            result = None
+        if response.status_code != 200 or not isinstance(result, dict):
+            log.warning("Turnstile siteverify answered HTTP %d: %s", response.status_code, response.text[:200])
             return False
+        if not result.get("success"):
+            log.warning("Turnstile siteverify rejected the token: error-codes %s, hostname %s",
+                        result.get("error-codes"), result.get("hostname"))
+            return False
+        return True
 
     @property
     def ttl_seconds(self) -> int:

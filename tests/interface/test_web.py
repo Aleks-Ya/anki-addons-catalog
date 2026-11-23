@@ -1,7 +1,9 @@
 import json
 from collections.abc import Iterator
 from typing import Any
+from urllib.parse import parse_qsl
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from mcp.server.mcpserver import MCPServer
@@ -13,7 +15,7 @@ from anki_addons_catalog.bootstrap import create_app
 from anki_addons_catalog.config import Settings
 from anki_addons_catalog.domain.models import LlmTurn, SearchFilters, ToolCall, Usage
 from anki_addons_catalog.interface.web.app import search_url
-from anki_addons_catalog.interface.web.security import PASS_COOKIE
+from anki_addons_catalog.interface.web.security import PASS_COOKIE, HumanCheck
 from tests.conftest import FakeLlm
 from tests.fixtures import FORK, FORK_OF_FORK, HEATMAP, KANJI, KANJI_COPY, OCCLUSION
 
@@ -638,6 +640,58 @@ def test_pass_ids_are_unique_and_old_cookies_invalid() -> None:
     expires = "9999999999"
     assert human.pass_id(request(f"{expires}.{human._sign(expires)}")) is None  # the format before pass ids
     assert HumanCheck("site", None, "s", 3600).pass_id(request(first), now=1000) is None  # check disabled
+
+
+def siteverify(*answers: httpx.Response | Exception) -> tuple[HumanCheck, list[dict[str, str]]]:
+    """A HumanCheck whose siteverify calls get `answers` in turn, and the form data of each call."""
+    sent: list[dict[str, str]] = []
+    queue = list(answers)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(dict(parse_qsl(request.content.decode())))
+        answer = queue.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+    return HumanCheck("site", "the-secret", "s", 3600, transport=httpx.MockTransport(handler)), sent
+
+
+@pytest.mark.anyio
+async def test_siteverify_accepts_a_valid_token() -> None:
+    human, sent = siteverify(httpx.Response(200, json={"success": True}))
+    assert await human.verify("the-token", "1.2.3.4")
+    assert sent[0]["secret"] == "the-secret" and sent[0]["response"] == "the-token"
+    assert sent[0]["remoteip"] == "1.2.3.4" and sent[0]["idempotency_key"]
+
+
+@pytest.mark.anyio
+async def test_siteverify_logs_the_error_codes(caplog: pytest.LogCaptureFixture) -> None:
+    human, _ = siteverify(httpx.Response(200, json={"success": False, "error-codes": ["invalid-input-secret"]}))
+    assert not await human.verify("the-token", "1.2.3.4")
+    assert "invalid-input-secret" in caplog.text
+    assert "the-secret" not in caplog.text and "the-token" not in caplog.text
+
+
+@pytest.mark.anyio
+async def test_siteverify_retries_a_network_error_once(caplog: pytest.LogCaptureFixture) -> None:
+    human, sent = siteverify(httpx.ConnectTimeout(""), httpx.Response(200, json={"success": True}))
+    assert await human.verify("the-token", "1.2.3.4")
+    assert len(sent) == 2 and sent[0]["idempotency_key"] == sent[1]["idempotency_key"]
+    assert "ConnectTimeout" in caplog.text and "attempt 1 of 2" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_siteverify_fails_after_two_network_errors(caplog: pytest.LogCaptureFixture) -> None:
+    human, sent = siteverify(httpx.ConnectTimeout(""), httpx.ReadTimeout(""))
+    assert not await human.verify("the-token", "1.2.3.4")
+    assert len(sent) == 2 and "ConnectTimeout" in caplog.text and "ReadTimeout" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_siteverify_logs_a_non_json_answer(caplog: pytest.LogCaptureFixture) -> None:
+    human, _ = siteverify(httpx.Response(500, text="<html>Server error</html>"))
+    assert not await human.verify("the-token", "1.2.3.4")
+    assert "HTTP 500" in caplog.text and "Server error" in caplog.text
 
 
 def test_admin_asks_without_turnstile_and_rate_limit(make_client: Any) -> None:
