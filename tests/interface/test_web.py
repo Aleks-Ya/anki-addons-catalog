@@ -26,6 +26,14 @@ def settings(**overrides: Any) -> Settings:
                     **overrides)
 
 
+@pytest.fixture(autouse=True)
+def no_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app starts the Turnstile probe when Turnstile is on; it would reach the real Cloudflare."""
+    async def probe(self: HumanCheck) -> None:
+        pass
+    monkeypatch.setattr(HumanCheck, "probe", probe)
+
+
 def scripted_llm() -> FakeLlm:
     return FakeLlm([
         LlmTurn(assistant_content=[], text="", stop_reason="tool_use", usage=Usage(input_tokens=10),

@@ -224,6 +224,11 @@ When a visitor sees "The check failed", the Space log has a `Turnstile siteverif
   `invalid-input-response` or `timeout-or-duplicate`: the token was invalid, expired or used already.
 - `answered HTTP …`: Cloudflare returned an error page.
 
+When Turnstile is on, the app also tests its connection to Cloudflare at startup and after a network error (at most
+every 10 minutes). It logs one `Turnstile probe:` line per check: DNS, TCP to each address of
+`challenges.cloudflare.com`, siteverify over the default route, IPv4 and IPv6 (with Cloudflare's test secret, not
+the real one), and `https://www.cloudflare.com/`.
+
 ### MCP server
 
 By default the catalog runs the [anki-addons-mcp](https://github.com/Aleks-Ya/anki-addons-mcp) server in-process (a

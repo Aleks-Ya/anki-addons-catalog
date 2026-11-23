@@ -130,6 +130,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         tasks = [asyncio.create_task(keepalive()), asyncio.create_task(save_usage())]
+        probe = ctx.human.start_probe()  # logs whether the app can reach Cloudflare siteverify
+        if probe is not None:
+            tasks.append(probe)
         try:
             yield
         finally:
