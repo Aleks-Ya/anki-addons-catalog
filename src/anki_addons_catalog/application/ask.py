@@ -12,7 +12,15 @@ from anki_addons_catalog.application import usage as u
 from anki_addons_catalog.application.limits import Budget, TtlCache, utc_now, utc_today
 from anki_addons_catalog.application.usage import QuestionRecord, UsageStats
 from anki_addons_catalog.domain.errors import CatalogUnavailable, LlmQuotaExhausted
-from anki_addons_catalog.domain.models import AddonCard, AnswerEvent, LlmTurn, SearchFilters, ToolCall, ToolSpec
+from anki_addons_catalog.domain.models import (
+    AddonCard,
+    AnswerEvent,
+    LlmTurn,
+    SearchFilters,
+    ToolCall,
+    ToolSpec,
+    Usage,
+)
 from anki_addons_catalog.domain.ports import CatalogPort, LlmPort
 
 log = logging.getLogger(__name__)
@@ -165,12 +173,11 @@ def _tool_status(call: ToolCall) -> str:
             return f"Calling {call.name.replace('_', ' ')}"
 
 
-def _trace_step(turn: LlmTurn, cost: float) -> dict[str, Any]:
+def _trace_step(stop: str, usage: Usage, cost: float, text: str = "") -> dict[str, Any]:
     """One model round of the question log; the caller adds the tool calls."""
-    usage = turn.usage
-    return {"stop": turn.stop_reason, "in": usage.input_tokens, "out": usage.output_tokens,
+    return {"stop": stop, "in": usage.input_tokens, "out": usage.output_tokens,
             "cache_read": usage.cache_read_input_tokens, "cache_write": usage.cache_creation_input_tokens,
-            "cost": cost, "text": turn.text, "tools": []}
+            "cost": cost, "text": text, "tools": []}
 
 
 class AskService:
@@ -278,6 +285,17 @@ class AskService:
                 task.cancel()  # the visitor disconnected: stop spending tokens
             await asyncio.gather(task, return_exceptions=True)
 
+    def _charge(self, used: Usage, record: QuestionRecord) -> float:
+        """Adds the cost of one model call to the budget, the usage counters and the question; returns the cost."""
+        cost = self._budget.record(used)
+        self._usage.add(u.AI_COST_USD, cost)
+        record.cost_usd += cost
+        record.input_tokens += used.input_tokens
+        record.output_tokens += used.output_tokens
+        record.cache_read_tokens += used.cache_read_input_tokens
+        record.cache_write_tokens += used.cache_creation_input_tokens
+        return cost
+
     def _record(self, record: QuestionRecord, started: float) -> None:
         record.duration_ms = round((time.monotonic() - started) * 1000)
         self._usage.record_question(record)
@@ -293,10 +311,12 @@ class AskService:
         messages: list[dict[str, Any]] = [{"role": "user", "content": f"{preface}Search query: {query}"}]
         cards: dict[int, AddonCard] = {}
         texts: list[str] = []
-        cost = 0.0
 
         async def on_text(delta: str) -> None:
             await emit(AnswerEvent("text", delta))
+
+        def on_cancel(used: Usage) -> None:  # the visitor left during the call: count what it cost so far
+            record.trace.append(_trace_step("cancelled", used, self._charge(used, record)))
 
         turn: LlmTurn | None = None
         rounds = 0
@@ -307,19 +327,11 @@ class AskService:
                 await emit(AnswerEvent("error", budget_message(resumes_on)))
                 return None
             await emit(AnswerEvent("status", "Thinking"))
-            turn = await self._llm.turn(SYSTEM_PROMPT, tools, messages, on_text)
-            turn_cost = self._budget.record(turn.usage)
-            self._usage.add(u.AI_COST_USD, turn_cost)
-            cost += turn_cost
-            step = _trace_step(turn, turn_cost)
+            turn = await self._llm.turn(SYSTEM_PROMPT, tools, messages, on_text, on_cancel=on_cancel)
+            step = _trace_step(turn.stop_reason, turn.usage, self._charge(turn.usage, record), turn.text)
             record.trace.append(step)
             record.rounds = rounds
             record.model = turn.model or record.model
-            record.input_tokens += turn.usage.input_tokens
-            record.output_tokens += turn.usage.output_tokens
-            record.cache_read_tokens += turn.usage.cache_read_input_tokens
-            record.cache_write_tokens += turn.usage.cache_creation_input_tokens
-            record.cost_usd = cost
             messages.append({"role": "assistant", "content": turn.assistant_content})
             if turn.text:
                 texts.append(turn.text)
@@ -353,7 +365,7 @@ class AskService:
         self._usage.add(u.AI_ANSWERED)
         record.outcome, record.answer, record.addon_ids = "answered", answer, [card["id"] for card in shown]
         log.info("Answered %r: %d rounds, %d addons, cost $%.4f, spent today $%.2f", query, rounds,
-                 len(shown), cost, self._budget.spent_usd)
+                 len(shown), record.cost_usd, self._budget.spent_usd)
         for event in final:
             await emit(event)
         return final

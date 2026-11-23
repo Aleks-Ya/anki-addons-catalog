@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -8,7 +9,7 @@ import pytest
 
 from anki_addons_catalog.adapters.claude.llm import FALLBACK_BETA, ClaudeLlm
 from anki_addons_catalog.domain.errors import LlmQuotaExhausted
-from anki_addons_catalog.domain.models import ToolSpec
+from anki_addons_catalog.domain.models import ToolSpec, Usage
 
 pytestmark = pytest.mark.anyio
 
@@ -134,3 +135,45 @@ async def test_workspace_limit_without_a_date() -> None:
 async def test_other_bad_requests_pass_through() -> None:
     with pytest.raises(anthropic.BadRequestError):
         await _error_llm("messages: field required").turn("s", TOOLS, [], _no_text)
+
+
+def _stalled_llm(events: list[dict[str, Any]]) -> ClaudeLlm:
+    """A stream that sends `events`, then waits as a slow model does."""
+    async def body() -> Any:
+        yield _sse(events)
+        await asyncio.Event().wait()
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=body(), headers={"content-type": "text/event-stream"})
+    client = anthropic.AsyncAnthropic(api_key="test", max_retries=0,
+                                      http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler)))
+    return ClaudeLlm(client, "claude-sonnet-5-5", "low", 4000)
+
+
+async def _cancel_turn(llm: ClaudeLlm, wait_for_text: bool) -> list[Usage]:
+    reported: list[Usage] = []
+    started = asyncio.Event()
+
+    async def on_text(delta: str) -> None:
+        started.set()
+
+    task = asyncio.create_task(llm.turn("s", TOOLS, [{"role": "user", "content": "q"}], on_text,
+                                        on_cancel=reported.append))
+    if wait_for_text:
+        await asyncio.wait_for(started.wait(), 5)
+    else:
+        await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    return reported
+
+
+async def test_cancelled_call_reports_the_usage_seen() -> None:
+    events = _message_events([{"type": "text", "text": "Let me"}], "end_turn")[:3]  # start, block start, one delta
+    assert await _cancel_turn(_stalled_llm(events), wait_for_text=True) == [
+        Usage(input_tokens=100, output_tokens=1, cache_read_input_tokens=900, cache_creation_input_tokens=50)]
+
+
+async def test_call_cancelled_before_message_start_reports_nothing() -> None:
+    assert await _cancel_turn(_stalled_llm([]), wait_for_text=False) == []

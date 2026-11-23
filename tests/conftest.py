@@ -6,7 +6,7 @@ from mcp.server.mcpserver import MCPServer
 
 from anki_addons_catalog.adapters.mcp.catalog import McpCatalog
 from anki_addons_catalog.domain.models import LlmTurn, ToolSpec
-from anki_addons_catalog.domain.ports import TextCallback
+from anki_addons_catalog.domain.ports import TextCallback, UsageCallback
 from tests.fixtures import mcp_server
 
 
@@ -36,7 +36,7 @@ class FakeLlm:
         self.tools: list[ToolSpec] = []
 
     async def turn(self, system: str, tools: list[ToolSpec], messages: list[dict[str, Any]],
-                   on_text: TextCallback) -> LlmTurn:
+                   on_text: TextCallback, on_cancel: UsageCallback | None = None) -> LlmTurn:
         self.requests.append([dict(m) for m in messages])
         self.tools = tools
         turn = self.turns.pop(0)

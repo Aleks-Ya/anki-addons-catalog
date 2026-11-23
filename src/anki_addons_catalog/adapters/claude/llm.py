@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from datetime import UTC, datetime
@@ -7,7 +8,7 @@ import anthropic
 
 from anki_addons_catalog.domain.errors import LlmQuotaExhausted
 from anki_addons_catalog.domain.models import LlmTurn, StopReason, ToolCall, ToolSpec, Usage
-from anki_addons_catalog.domain.ports import TextCallback
+from anki_addons_catalog.domain.ports import TextCallback, UsageCallback
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,12 @@ def quota_error(error: anthropic.BadRequestError) -> LlmQuotaExhausted | None:
     match = _REGAIN.search(text)
     until = datetime.fromisoformat(f"{match[1]}T{match[2]}").replace(tzinfo=UTC) if match else None
     return LlmQuotaExhausted(text, until)
+
+
+def _usage(u: Any) -> Usage:
+    return Usage(input_tokens=u.input_tokens, output_tokens=u.output_tokens,
+                 cache_read_input_tokens=u.cache_read_input_tokens or 0,
+                 cache_creation_input_tokens=u.cache_creation_input_tokens or 0)
 
 
 class ClaudeLlm:
@@ -51,10 +58,11 @@ class ClaudeLlm:
         return params
 
     async def turn(self, system: str, tools: list[ToolSpec], messages: list[dict[str, Any]],
-                   on_text: TextCallback) -> LlmTurn:
+                   on_text: TextCallback, on_cancel: UsageCallback | None = None) -> LlmTurn:
         extra: dict[str, Any] = {}
         if self._fallbacks_enabled:
             extra = {"betas": [FALLBACK_BETA], "fallbacks": "default"}
+        seen: Usage | None = None  # the input and cache tokens arrive with message_start, the output at the end
         try:
             async with self._client.beta.messages.stream(
                 model=self._model,
@@ -66,22 +74,25 @@ class ClaudeLlm:
                 **extra,
             ) as stream:
                 async for event in stream:
-                    if event.type == "text":
+                    if event.type == "message_start":
+                        seen = _usage(event.message.usage)
+                    elif event.type == "text":
                         await on_text(event.text)
                 message = await stream.get_final_message()
         except anthropic.BadRequestError as e:
             if (quota := quota_error(e)) is not None:
                 raise quota from e
             raise
+        except asyncio.CancelledError:
+            if seen is not None and on_cancel is not None:
+                on_cancel(seen)  # the API bills the stopped call too
+            raise
 
         stop_reason: StopReason = message.stop_reason if message.stop_reason in _STOP_REASONS else "other"  # type: ignore[assignment]
         text = "".join(block.text for block in message.content if block.type == "text")
         calls = [ToolCall(id=block.id, name=block.name, arguments=dict(block.input))
                  for block in message.content if block.type == "tool_use" and isinstance(block.input, dict)]
-        u = message.usage
-        usage = Usage(input_tokens=u.input_tokens, output_tokens=u.output_tokens,
-                      cache_read_input_tokens=u.cache_read_input_tokens or 0,
-                      cache_creation_input_tokens=u.cache_creation_input_tokens or 0)
+        usage = _usage(message.usage)
         log.info("Claude turn: model=%s stop=%s in=%d out=%d cache_read=%d cache_write=%d", message.model,
                  stop_reason, usage.input_tokens, usage.output_tokens, usage.cache_read_input_tokens,
                  usage.cache_creation_input_tokens)

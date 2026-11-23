@@ -73,7 +73,8 @@ bootstrap        settings -> adapters -> services -> FastAPI app
    `MAX_TOOL_ROUNDS` rounds; the last round asks Claude to answer with what it has.
 4. Streams `status` (tool progress), `text` (raw deltas), `answer` (markdown rendered server-side with raw HTML
    disabled), `addons` (cards of the addons the answer links to), `done` or `error` events. If the visitor leaves,
-   the loop is cancelled.
+   the loop is cancelled. The stopped model call is still billed, so its cost, as far as the API reported it
+   (input and cache tokens arrive at its start, output tokens at its end), counts towards the budgets.
 
 The keyword results (`search_addons`) are rendered server-side under the AI answer, so the page is useful even
 when the AI is unavailable or over budget.

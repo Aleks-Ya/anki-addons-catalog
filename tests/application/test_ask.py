@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -116,7 +117,7 @@ async def test_records_the_question_trace(catalog: McpCatalog) -> None:
 
 async def test_records_failures_and_refusals(catalog: McpCatalog) -> None:
     class Broken(FakeLlm):
-        async def turn(self, *args: Any) -> LlmTurn:
+        async def turn(self, *args: Any, **kwargs: Any) -> LlmTurn:
             raise RuntimeError("boom")
 
     usage = UsageStats()
@@ -155,7 +156,7 @@ async def test_budget_exhausted(catalog: McpCatalog) -> None:
 class QuotaLlm(FakeLlm):
     """Refuses every request, as the API does at the workspace spend limit."""
 
-    async def turn(self, *args: Any) -> LlmTurn:
+    async def turn(self, *args: Any, **kwargs: Any) -> LlmTurn:
         self.requests.append([])
         raise LlmQuotaExhausted("You have reached your specified workspace API usage limits.",
                                 datetime(2026, 12, 1, tzinfo=UTC))
@@ -173,6 +174,37 @@ async def test_workspace_limit_pauses_ai_search(catalog: McpCatalog) -> None:
     with pytest.raises(BudgetExhausted) as e:
         await collect(ask, "heatmap")
     assert e.value.resumes_on == date(2026, 12, 1) and len(llm.requests) == 1  # no second request
+
+
+class StoppedLlm(FakeLlm):
+    """Streams some text, then waits until the visitor leaves; reports the usage seen so far, as ClaudeLlm does."""
+
+    async def turn(self, system: str, tools: list[Any], messages: list[dict[str, Any]], on_text: Any,
+                   on_cancel: Any = None) -> LlmTurn:
+        await on_text("Let me")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            on_cancel(Usage(input_tokens=100, cache_creation_input_tokens=10_000))
+            raise
+        raise AssertionError("not cancelled")
+
+
+async def test_counts_the_cost_of_a_call_stopped_by_the_visitor(catalog: McpCatalog) -> None:
+    usage = UsageStats()
+    ask = service(catalog, StoppedLlm([]), usage=usage)
+    stream = ask.ask("kanji")
+    async for event in stream:
+        if event.type == "text":
+            break
+    await stream.aclose()  # the visitor left
+    cost = PRICING.cost(Usage(input_tokens=100, cache_creation_input_tokens=10_000))
+    [q] = list(usage.iter_questions())
+    assert q["outcome"] == "cancelled" and q["cost_usd"] == pytest.approx(cost)
+    assert q["input_tokens"] == 100 and q["cache_write_tokens"] == 10_000
+    assert [step["stop"] for step in q["trace"]] == ["cancelled"]
+    assert usage.today(u.AI_COST_USD) == pytest.approx(cost)
+    assert ask.budget.spent_usd == pytest.approx(cost) and ask.budget.spent_month_usd == pytest.approx(cost)
 
 
 async def test_refusal(catalog: McpCatalog) -> None:
