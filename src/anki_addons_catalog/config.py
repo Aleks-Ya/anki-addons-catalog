@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     daily_budget_usd: float = 5.0
     monthly_budget_usd: float = 18.0  # keep it under the workspace spend limit in the Claude Console
     rate_limit_per_hour: int = 20
-    answer_cache_ttl_seconds: int = 86400
+    answer_cache_ttl_seconds: int = 2_678_400  # 31 days: the cache key has the snapshot, which changes monthly
 
     turnstile_site_key: str | None = None
     turnstile_secret: SecretStr | None = None

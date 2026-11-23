@@ -67,7 +67,9 @@ bootstrap        settings -> adapters -> services -> FastAPI app
    tests; the budgets still apply. When the API reports the workspace spend limit (an HTTP 400 "You have reached
    your specified workspace API usage limits"), the app pauses AI search until the time in the error, as if the
    budget were used up. The pause lives in memory, so after a restart one question meets the error again.
-2. Serves a cached answer for the same question and dataset snapshot, if any.
+2. Serves a cached answer for the same question, filters and dataset snapshot, if any. Answers are kept until the
+   monthly snapshot changes (31 days), one day with the "recently updated" filter (its cutoff is relative to
+   today). The cache is in memory: a deploy or a restart empties it.
 3. Runs the tool loop: Claude gets the system prompt and the allowed MCP tools (sorted, with cache breakpoints, so
    the static prefix is prompt-cached), calls tools in parallel, and the app runs them over MCP. At most
    `MAX_TOOL_ROUNDS` rounds; the last round asks Claude to answer with what it has.

@@ -349,6 +349,24 @@ async def test_cached_returns_only_cached_answers(catalog: McpCatalog) -> None:
     assert [q["outcome"] for q in usage.iter_questions()] == ["answered", "cached"]
 
 
+@pytest.mark.parametrize(("recent", "requests_next_day"), [(False, 1), (True, 2)])
+async def test_recently_updated_answers_last_a_day(catalog: McpCatalog, monkeypatch: pytest.MonkeyPatch,
+                                                   recent: bool, requests_next_day: int) -> None:
+    from anki_addons_catalog.application import ask as ask_module
+
+    day = [date(2026, 11, 10)]
+    monkeypatch.setattr(ask_module, "utc_today", lambda: day[0])
+    llm = FakeLlm([answer("One."), answer("Two.")])
+    ask = service(catalog, llm)
+    filters = SearchFilters(recent=recent)
+    await collect(ask, "kanji", filters)
+    await collect(ask, "kanji", filters)
+    assert len(llm.requests) == 1  # the same day: cached
+    day[0] = date(2026, 11, 11)
+    await collect(ask, "kanji", filters)
+    assert len(llm.requests) == requests_next_day
+
+
 async def test_answers_are_cached_per_filters(catalog: McpCatalog) -> None:
     llm = FakeLlm([answer("One."), answer("Two.")])
     ask = service(catalog, llm)

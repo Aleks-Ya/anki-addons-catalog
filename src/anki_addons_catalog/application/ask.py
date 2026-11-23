@@ -184,7 +184,7 @@ class AskService:
     """Answers a natural-language question with Claude, which calls the MCP catalog tools."""
 
     def __init__(self, catalog: CatalogPort, llm: LlmPort, budget: Budget, *, allowed_tools: list[str],
-                 max_tool_rounds: int = 6, answer_cache_ttl_seconds: float = 86400,
+                 max_tool_rounds: int = 6, answer_cache_ttl_seconds: float = 2_678_400,
                  snapshot: Callable[[], Awaitable[str | None]] | None = None,
                  usage: UsageStats | None = None) -> None:
         self._catalog = catalog
@@ -195,7 +195,7 @@ class AskService:
         self._snapshot = snapshot
         self._usage = usage or UsageStats()
         self._tools: list[ToolSpec] | None = None
-        self._answers: TtlCache[str, list[AnswerEvent]] = TtlCache(answer_cache_ttl_seconds, max_entries=1000)
+        self._answers: TtlCache[str, list[AnswerEvent]] = TtlCache(answer_cache_ttl_seconds, max_entries=5000)
 
     @property
     def budget(self) -> Budget:
@@ -301,10 +301,14 @@ class AskService:
         return cached
 
     async def _question(self, query: str, filters: SearchFilters) -> tuple[QuestionRecord, str]:
-        """The question log record and the answer cache key of a normalized query."""
+        """The question log record and the answer cache key of a normalized query.
+
+        A filter relative to today ("recently updated") puts its cutoff date into the key, so such an answer lasts a day.
+        """
         snapshot = await self._snapshot_date()
         record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(browse=False)) or None)
-        return record, f"{snapshot}|{query.lower()}|{record.filters or ''}"
+        cutoff = filters.tool_args(utc_today()).get("updated_after", "")
+        return record, f"{snapshot}|{query.lower()}|{record.filters or ''}|{cutoff}"
 
     def _serve_cached(self, record: QuestionRecord, events: list[AnswerEvent], started: float) -> None:
         self._usage.add(u.AI_CACHED)
