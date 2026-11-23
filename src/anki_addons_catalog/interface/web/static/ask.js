@@ -1,5 +1,7 @@
-// Streams the AI answer from /api/ask (Server-Sent Events) after the visitor clicks the button: a question that
-// starts on page load is mostly cancelled by a filter change or a quick exit, but still costs money.
+// Streams the AI answer from /api/ask (Server-Sent Events). It starts by itself when the visitor has just typed the
+// question in the search box, or when the answer is cached (free, no human check); otherwise after a click on the
+// button, as a question that starts on every page load is mostly cancelled by a filter change or a quick exit, but
+// still costs money.
 (() => {
   const root = document.getElementById("ai");
   if (!root) return;
@@ -45,13 +47,14 @@
     else window.addEventListener("load", render, { once: true });
   }
 
-  function start() {
-    setStatus("Starting…");
+  function start(cachedOnly = false) {
+    setStatus(cachedOnly ? "" : "Starting…");
     answer.replaceChildren();
     addons.replaceChildren();
     let streamed = "";
     const filters = root.dataset.filters ? "&" + root.dataset.filters : "";
-    const source = new EventSource("/api/ask?q=" + encodeURIComponent(query) + filters);
+    const cached = cachedOnly ? "&cached=1" : "";
+    const source = new EventSource("/api/ask?q=" + encodeURIComponent(query) + filters + cached);
     const finish = () => source.close();
     const data = (event) => JSON.parse(event.data);
 
@@ -71,9 +74,11 @@
       addons.innerHTML = "<h3>Addons in this answer</h3>" + payload.html;
     });
     source.addEventListener("done", () => { setStatus(""); finish(); });
+    source.addEventListener("not_cached", () => { finish(); button.hidden = false; });
     source.addEventListener("error", (e) => {
       finish();
-      if (e.data) showError(data(e));
+      if (cachedOnly && !e.data && !answer.innerHTML) button.hidden = false;
+      else if (e.data) showError(data(e));
       else if (!answer.innerHTML) showError("The connection was interrupted. Please reload the page to try again.");
     });
     source.addEventListener("verify", () => {
@@ -86,4 +91,18 @@
     button.hidden = true;
     start();
   });
+
+  const typed = (() => {
+    try {
+      const value = sessionStorage.getItem("ai-ask");
+      sessionStorage.removeItem("ai-ask");  // once: a reload or a filter change is not typing
+      return value;
+    } catch {
+      return null;
+    }
+  })();
+  const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+  button.hidden = true;
+  if (typed !== null && normalize(typed) === normalize(query)) start();
+  else start(true);
 })();

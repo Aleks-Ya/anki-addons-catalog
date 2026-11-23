@@ -336,6 +336,19 @@ async def test_visitor_filters_narrow_the_model_searches(catalog: McpCatalog) ->
     assert q["filters"] == "anki=25.02&rating=200"
 
 
+async def test_cached_returns_only_cached_answers(catalog: McpCatalog) -> None:
+    llm = FakeLlm([answer("Nothing fits.")])
+    usage = UsageStats()
+    ask = service(catalog, llm, usage=usage)
+    assert await ask.cached("kanji") is None
+    assert usage.today(u.AI_ASKED) == 0 and list(usage.iter_questions()) == []  # a miss is not a question
+    first = await collect(ask, "Kanji")
+    cached = await ask.cached(" kanji ")
+    assert cached == first[-3:] and len(llm.requests) == 1
+    assert [usage.today(n) for n in (u.AI_ASKED, u.AI_CACHED)] == [2, 1]
+    assert [q["outcome"] for q in usage.iter_questions()] == ["answered", "cached"]
+
+
 async def test_answers_are_cached_per_filters(catalog: McpCatalog) -> None:
     llm = FakeLlm([answer("One."), answer("Two.")])
     ask = service(catalog, llm)

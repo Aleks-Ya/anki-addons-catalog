@@ -79,9 +79,14 @@ bootstrap        settings -> adapters -> services -> FastAPI app
 The keyword results (`search_addons`) are rendered server-side under the AI answer, so the page is useful even
 when the AI is unavailable or over budget.
 
-The AI question starts only when the visitor clicks the button in the AI answer section (on the search and the
-alternatives page). Questions that started on page load were mostly cancelled by a filter change, which reloads the
-page, or by a quick exit, but still cost money: in November 2026 they were more than half of the AI spend.
+The AI question starts by itself only when the visitor has just typed it in the search box, or when its answer is
+cached; otherwise the visitor clicks the button in the AI answer section (on the search and the alternatives page).
+Questions that started on every page load were mostly cancelled by a filter change, which reloads the page, or by a
+quick exit, but still cost money: in November 2026 they were more than half of the AI spend.
+- A typed question: the search box puts it into `sessionStorage` on submit, and the search page starts the AI when
+  its query matches (once). The URL is the same for a typed question and a link, so it cannot tell them apart.
+- A cached answer: on load the page asks `/api/ask?cached=1`, which returns only a cached answer, or a `not_cached`
+  event that shows the button. A cached answer costs nothing, so this request skips Turnstile and the rate limit.
 
 ## Deploy to a HuggingFace Space
 

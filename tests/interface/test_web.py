@@ -590,6 +590,17 @@ def test_turnstile_gate(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> No
     assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
 
 
+def test_cached_answers_need_no_turnstile_or_rate_limit(make_client: Any) -> None:
+    client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s",
+                         admin_token="secret", rate_limit_per_hour=1)
+    assert sse_events(client.get("/api/ask", params={"q": "kanji", "cached": "1"}).text) == [("not_cached", None)]
+    assert sse_events(client.get("/api/ask", params={"q": "kanji"}, auth=("admin", "secret")).text)[-1][0] == "done"
+    for _ in range(2):  # beyond the rate limit, without a pass
+        events = sse_events(client.get("/api/ask", params={"q": "kanji", "cached": "1"}).text)
+        assert [name for name, _ in events] == ["answer", "addons", "done"]
+    assert sse_events(client.get("/api/ask", params={"q": "kanji"}).text) == [("verify", None)]
+
+
 def test_ask_rate_limited_per_pass(make_client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     client = make_client(turnstile_site_key="site", turnstile_secret="secret", session_secret="s",
                          rate_limit_per_hour=1)

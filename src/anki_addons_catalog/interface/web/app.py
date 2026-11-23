@@ -271,7 +271,9 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
 
     @app.get("/api/ask")
     async def ask(request: Request, credentials: Annotated[HTTPBasicCredentials | None, Depends(basic_auth)],
-                  q: str = "") -> StreamingResponse:
+                  q: str = "", cached: bool = False) -> StreamingResponse:
+        """The AI answer as Server-Sent Events. With `cached`, only a cached answer (it costs nothing, so it needs no
+        human check and no rate limit), else a `not_cached` event."""
         query = q.strip()
         admin = is_admin(credentials)  # the deploy smoke test: no Turnstile and no rate limit; the budget still applies
 
@@ -282,10 +284,25 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
             return StreamingResponse(body, media_type="text/event-stream",
                                      headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
+        def _event_data(event: AnswerEvent) -> Any:
+            if event.type == "answer":
+                return {"html": render_markdown(event.data, new_tab=True)}
+            if event.type == "addons":
+                html = templates.get_template("_cards.html").render(cards=event.data, new_tab=True)
+                return {"html": html, "count": len(event.data)}
+            return event.data
+
+        async def replay(events: list[AnswerEvent]) -> AsyncIterator[str]:
+            for event in events:
+                yield _sse(event.type, _event_data(event))
+
         if not query:
             return stream(single("error", "Please type a question."))
         if len(query) > ctx.max_query_chars:
             return stream(single("error", f"Please keep the question under {ctx.max_query_chars} characters."))
+        if cached:
+            answer = await ctx.ask.cached(query, await search_filters(request))
+            return stream(replay(answer) if answer is not None else single("not_cached", None))
         if not admin and not ctx.human.has_pass(request):
             ctx.usage.add(u.AI_VERIFY)
             return stream(single("verify", None))
@@ -304,14 +321,6 @@ def create_web_app(ctx: WebContext, close: Any = None) -> FastAPI:
                 yield _sse("error", budget_message(e.resumes_on))
             except CatalogUnavailable:
                 yield _sse("error", "The addon catalog is temporarily unavailable. Please try again in a minute.")
-
-        def _event_data(event: AnswerEvent) -> Any:
-            if event.type == "answer":
-                return {"html": render_markdown(event.data, new_tab=True)}
-            if event.type == "addons":
-                html = templates.get_template("_cards.html").render(cards=event.data, new_tab=True)
-                return {"html": html, "count": len(event.data)}
-            return event.data
 
         return stream(events())
 

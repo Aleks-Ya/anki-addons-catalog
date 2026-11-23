@@ -223,19 +223,10 @@ class AskService:
         filters = filters or SearchFilters()
         started = time.monotonic()
         self._usage.add(u.AI_ASKED)
-        snapshot = await self._snapshot_date()
-        record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(browse=False)) or None)
-        key = f"{snapshot}|{query.lower()}|{record.filters or ''}"
+        record, key = await self._question(query, filters)
         cached = self._answers.get(key)
         if cached is not None:
-            self._usage.add(u.AI_CACHED)
-            record.outcome = "cached"
-            for event in cached:
-                if event.type == "answer":
-                    record.answer = event.data
-                elif event.type == "addons":
-                    record.addon_ids = [card["id"] for card in event.data]
-            self._record(record, started)
+            self._serve_cached(record, cached, started)
             for event in cached:
                 yield event
             return
@@ -252,7 +243,7 @@ class AskService:
 
         async def run() -> None:
             try:
-                final = await self._answer(query, filters, snapshot, emit, record)
+                final = await self._answer(query, filters, record.snapshot, emit, record)
                 if final:
                     self._answers.put(key, final)
             except CatalogUnavailable as e:
@@ -295,6 +286,35 @@ class AskService:
         record.cache_read_tokens += used.cache_read_input_tokens
         record.cache_write_tokens += used.cache_creation_input_tokens
         return cost
+
+    async def cached(self, query: str, filters: SearchFilters | None = None) -> list[AnswerEvent] | None:
+        """The cached answer events of a question, counted and logged as a cached question; None without them.
+
+        A miss counts and logs nothing: it costs nothing, and the visitor has not asked yet."""
+        query = normalize_query(query)
+        started = time.monotonic()
+        record, key = await self._question(query, filters or SearchFilters())
+        cached = self._answers.get(key)
+        if cached is not None:
+            self._usage.add(u.AI_ASKED)
+            self._serve_cached(record, cached, started)
+        return cached
+
+    async def _question(self, query: str, filters: SearchFilters) -> tuple[QuestionRecord, str]:
+        """The question log record and the answer cache key of a normalized query."""
+        snapshot = await self._snapshot_date()
+        record = QuestionRecord(query, snapshot, filters=urlencode(filters.params(browse=False)) or None)
+        return record, f"{snapshot}|{query.lower()}|{record.filters or ''}"
+
+    def _serve_cached(self, record: QuestionRecord, events: list[AnswerEvent], started: float) -> None:
+        self._usage.add(u.AI_CACHED)
+        record.outcome = "cached"
+        for event in events:
+            if event.type == "answer":
+                record.answer = event.data
+            elif event.type == "addons":
+                record.addon_ids = [card["id"] for card in event.data]
+        self._record(record, started)
 
     def _record(self, record: QuestionRecord, started: float) -> None:
         record.duration_ms = round((time.monotonic() - started) * 1000)
