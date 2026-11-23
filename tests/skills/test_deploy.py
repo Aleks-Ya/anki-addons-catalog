@@ -125,3 +125,13 @@ def test_env_value() -> None:
     assert smoke.env_value(env, "ANKI_CATALOG_ADMIN_TOKEN") == "abc"
     assert smoke.env_value(env, "ANKI_CATALOG_STAGING_ADMIN_TOKEN") == "d=f"
     assert smoke.env_value(env, "MISSING") is None
+
+
+def test_page_spec() -> None:
+    assert smoke.page_spec("/addon/1=new text") == ("/addon/1", "new text")
+    assert smoke.page_spec("/addon/1") == ("/addon/1", "")
+    assert smoke.page_spec("/search?lang=Python&lang=C%2B%2B") == ("/search?lang=Python&lang=C%2B%2B", "")
+    assert smoke.page_spec("/search?lang=Python=Language: Python") == ("/search?lang=Python", "Language: Python")
+    assert smoke.page_spec("/search?q=a+b=Q&A = x") == ("/search?q=a+b", "Q&A = x")
+    with pytest.raises(ValueError, match="key=value"):
+        smoke.page_spec("/search?q")

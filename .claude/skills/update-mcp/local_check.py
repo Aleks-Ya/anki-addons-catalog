@@ -29,25 +29,13 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "deploy"))
-from smoke import Check, about, answer, contains, env_value, fetch, health, ok_status, parse_sse
+from smoke import Check, about, answer, contains, env_value, fetch, health, ok_status, page_spec, parse_sse
 
 MAX_QUESTIONS = 3
 ADDON = 1374772155  # Image Occlusion Enhanced
 TOKEN_VAR = "ANKI_CATALOG_ADMIN_TOKEN"
 READY = "Dataset loaded"
 FAILED = ("Warm-up failed", "Traceback")
-# A path with an optional query whose values hold no "=", then an optional "=<text>".
-_PAGE = re.compile(r"(?P<path>[^?=]*(\?[^=&]*=[^=&]*(&[^=&]*=[^=&]*)*)?)(=(?P<text>.*))?", re.DOTALL)
-
-
-def page_spec(spec: str) -> tuple[str, str]:
-    """The path and the expected text ("" for none) of a --page argument."""
-    match = _PAGE.fullmatch(spec)
-    if not match:
-        raise ValueError(f"bad --page {spec!r}: the query must be key=value pairs")
-    return match["path"], match["text"] or ""
-
-
 def free_port() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))

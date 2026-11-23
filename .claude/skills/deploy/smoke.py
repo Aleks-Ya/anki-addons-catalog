@@ -5,12 +5,15 @@ Run from the repository root. Reads the stored HF token (staging is private) and
 itself, so no secret appears in a command or in the output. Prints one "PASS|FAIL <check>: <detail>" line per check
 and exits 0 when all pass, 1 otherwise.
 --page also checks a page the deployed commit changed: it must return 200 and, with `=<text>`, contain the text.
+A --page path may have a query: the text starts at the "=" after the last parameter's value, e.g.
+--page "/search?q=kanji=Ask the AI".
 --ask asks the AI search one question as the admin, which skips Turnstile and the rate limit (the daily budget still
 applies). It costs a few cents of Claude credits.
 """
 import argparse
 import base64
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -23,6 +26,16 @@ from space import Target, get_target, git, hf_token, version_at
 
 ADDON = 1374772155  # Image Occlusion Enhanced
 Check = tuple[bool, str]
+# A path with an optional query whose values hold no "=", then an optional "=<text>".
+_PAGE = re.compile(r"(?P<path>[^?=]*(\?[^=&]*=[^=&]*(&[^=&]*=[^=&]*)*)?)(=(?P<text>.*))?", re.DOTALL)
+
+
+def page_spec(spec: str) -> tuple[str, str]:
+    """The path and the expected text ("" for none) of a --page argument."""
+    match = _PAGE.fullmatch(spec)
+    if not match:
+        raise ValueError(f"bad --page {spec!r}: the query must be key=value pairs")
+    return match["path"], match["text"] or ""
 
 
 def fetch(url: str, headers: dict[str, str], timeout: int = 60) -> tuple[int, str]:
@@ -144,7 +157,7 @@ def checks(sha: str, space: Target, pages: list[str], question: str | None) -> l
     except (subprocess.SubprocessError, OSError) as e:
         results.append(("MCP server log", (False, f"cannot read the run log: {e}")))
     for spec in pages:
-        path, _, text = spec.partition("=")
+        path, text = page_spec(spec)
         results.append((f"page {path}", contains(*get(path), text, repr(text)) if text else ok_status(*get(path))))
     if question:
         results.append((f"ask {question!r}", ask(space, headers, question)))
@@ -171,6 +184,12 @@ def main() -> int:
     parser.add_argument("--page", action="append", default=[])
     parser.add_argument("--ask")
     args = parser.parse_args()
+    try:
+        for spec in args.page:
+            page_spec(spec)
+    except ValueError as e:
+        print(f"FAIL page: {e}")
+        return 1
     results = checks(args.sha, get_target(args.target), args.page, args.ask)
     for name, (ok, detail) in results:
         print(f"{'PASS' if ok else 'FAIL'} {name}: {detail}", flush=True)

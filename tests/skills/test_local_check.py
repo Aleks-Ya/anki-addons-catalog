@@ -27,16 +27,6 @@ def test_local_check_limits_questions(monkeypatch: pytest.MonkeyPatch, capsys: p
     assert "at most 3" in capsys.readouterr().out
 
 
-def test_page_spec() -> None:
-    assert local_check.page_spec("/addon/1=new text") == ("/addon/1", "new text")
-    assert local_check.page_spec("/addon/1") == ("/addon/1", "")
-    assert local_check.page_spec("/search?lang=Python&lang=C%2B%2B") == ("/search?lang=Python&lang=C%2B%2B", "")
-    assert local_check.page_spec("/search?lang=Python=Language: Python") == ("/search?lang=Python", "Language: Python")
-    assert local_check.page_spec("/search?q=a+b=Q&A = x") == ("/search?q=a+b", "Q&A = x")
-    with pytest.raises(ValueError, match="key=value"):
-        local_check.page_spec("/search?q")
-
-
 @pytest.mark.parametrize(("target", "about"), [(None, False), ("0.12.1", True)])
 def test_about_is_checked_only_with_a_target(monkeypatch: pytest.MonkeyPatch, target: str | None, about: bool) -> None:
     monkeypatch.setattr(local_check, "fetch", lambda url, headers, timeout=60: (200, ""))
